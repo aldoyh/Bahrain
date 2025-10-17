@@ -48,6 +48,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // Call pre-positioning once at start
   prePositionElements();
 
+  // Helper function to get the previous layout index
+  function getPreviousLayout() {
+    return (currentLayout - 1 + layouts.length) % layouts.length;
+  }
+
   // Function to show words in grid layout (returns a timeline)
   function showWords() {
     const tl = gsap.timeline();
@@ -126,7 +131,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const state = Flip.getState(letters, {
       props: "transform,opacity",
       simple: true, // Keep trying simple approach
-      absolute: true // Match the Flip.from setting for consistency
+      absolute: true // Match Flip.from to prevent coordinate system mismatches
     });
 
     // Remove current layout class
@@ -151,7 +156,7 @@ document.addEventListener('DOMContentLoaded', function () {
         delay: 0.7, // Slight delay to let letters settle
         ease: "power2.inOut"
       });
-    } else if (layouts[(currentLayout - 1 + layouts.length) % layouts.length] === 'final') {
+    } else if (layouts[getPreviousLayout()] === 'final') {
       // Fade out immediately when leaving final layout
       gsap.to([kingdom, bahrain], {
         opacity: 0,
@@ -219,10 +224,8 @@ document.addEventListener('DOMContentLoaded', function () {
     await changeLayout();
 
     // Determine delay based on the layout that was *just displayed*
-    // Since changeLayout increments currentLayout, the layout just shown
-    // is at index (currentLayout - 1 + layouts.length) % layouts.length
-    const displayedLayoutIndex = (currentLayout + layouts.length - 1) % layouts.length;
-    const displayedLayoutName = layouts[displayedLayoutIndex];
+    // Since changeLayout increments currentLayout, the layout just shown is the previous one
+    const displayedLayoutName = layouts[getPreviousLayout()];
     // Grid delay: Allow viewing time *after* changeLayout (which includes showWords) finishes
     // Optimized viewing times for better flow
     const delay = (displayedLayoutName === 'grid') ? 6000 : 2800;
