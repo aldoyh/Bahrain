@@ -125,7 +125,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Get current state (letters are scale: 1 if leaving grid, or already 1 otherwise)
     const state = Flip.getState(letters, {
       props: "transform,opacity",
-      simple: true // Keep trying simple approach
+      simple: true, // Keep trying simple approach
+      absolute: true // Match the Flip.from setting for consistency
     });
 
     // Remove current layout class
@@ -141,19 +142,21 @@ document.addEventListener('DOMContentLoaded', function () {
     document.body.offsetHeight; // Force reflow
 
     // Handle kingdom and bahrain text visibility with smoother timing
+    // Start fade immediately to coordinate with letter animations
     if (layouts[currentLayout] === 'final') {
       gsap.set([kingdom, bahrain], { display: 'block', opacity: 0 });
       gsap.to([kingdom, bahrain], { 
         opacity: 1, 
         duration: 0.8, 
-        delay: 0.6,
+        delay: 0.7, // Slight delay to let letters settle
         ease: "power2.inOut"
       });
-    } else {
+    } else if (layouts[(currentLayout - 1 + layouts.length) % layouts.length] === 'final') {
+      // Fade out immediately when leaving final layout
       gsap.to([kingdom, bahrain], {
         opacity: 0,
-        duration: 0.6,
-        ease: "power2.inOut",
+        duration: 0.4,
+        ease: "power2.in",
         onComplete: () => gsap.set([kingdom, bahrain], { display: 'none' })
       });
     }
