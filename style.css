@@ -40,6 +40,8 @@ body::before {
   position: relative;
   transform-style: preserve-3d;
   perspective: 1000px;
+  /* Prevent layout shifts during animations */
+  contain: layout;
 }
 
 .letter {
@@ -58,6 +60,8 @@ body::before {
   will-change: transform, opacity;
   transform: translateZ(0);
   backface-visibility: hidden;
+  /* Additional smoothing for GSAP animations */
+  transform-origin: center center;
 }
 
 .braille {

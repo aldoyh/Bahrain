@@ -10,14 +10,14 @@ document.addEventListener('DOMContentLoaded', function () {
   const bahrain = document.querySelector('.bahrain');
 
 
-  // Initial entrance animation for letters
+  // Initial entrance animation for letters - smoother and more refined
   gsap.from(letters, {
-    duration: 0.8,
-    scale: 0.5,
+    duration: 1.0,
+    scale: 0.3,
     opacity: 0,
     delay: 0.5, // Small delay after page load
-    stagger: 0.1,
-    ease: 'back.out(1.7)',
+    stagger: 0.08,
+    ease: 'power2.out',
     force3D: true
   });
 
@@ -48,30 +48,35 @@ document.addEventListener('DOMContentLoaded', function () {
   // Call pre-positioning once at start
   prePositionElements();
 
+  // Helper function to get the previous layout index
+  function getPreviousLayout() {
+    return (currentLayout - 1 + layouts.length) % layouts.length;
+  }
+
   // Function to show words in grid layout (returns a timeline)
   function showWords() {
     const tl = gsap.timeline();
     const wordDuration = 0.8;
     const pulseDuration = 0.4;
-    const staggerDelay = 1.2; // Increased for better readability
+    const staggerDelay = 1.0; // Optimized timing for smooth flow
 
     words.forEach((word, index) => {
       const letterBox = word.parentElement;
       const pos = index * staggerDelay;
 
-      // Word fade in and slide up
+      // Word fade in and slide up with smoother easing
       tl.to(word, {
         opacity: 1,
         y: 0,
         duration: wordDuration,
-        ease: "power2.out"
+        ease: "power1.out"
       }, pos);
 
-      // Pulse animation that works with current scale
+      // Pulse animation that works with current scale - gentler animation
       tl.to(letterBox, {
-        scale: "+=0.1", // Relative scale increase
+        scale: "+=0.08", // Slightly reduced for subtler effect
         duration: pulseDuration,
-        ease: "back.inOut(2)",
+        ease: "power1.inOut",
         yoyo: true,
         repeat: 1
       }, pos + 0.2); // Slight delay after word starts appearing
@@ -86,8 +91,8 @@ document.addEventListener('DOMContentLoaded', function () {
       gsap.to(words, {
         opacity: 0,
         y: 20,
-        duration: 0.5,
-        ease: "power4.inOut",
+        duration: 0.6,
+        ease: "power2.inOut",
         onComplete: resolve
       });
     });
@@ -106,17 +111,27 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // --- Reset Scale and Hide Words if Leaving Grid ---
       if (layouts[currentLayout] === 'grid') {
-        // 1. Hide words first
+        // 1. Hide words first with smooth animation
         await hideWords();
         // 2. Reset scale *after* words are hidden, before capturing state
-        gsap.set(letters, { scale: 1 });
+        // Use animation instead of instant set for smoother transition
+        await gsap.to(letters, { 
+          scale: 1, 
+          duration: 0.5, 
+          ease: "power1.inOut",
+          stagger: {
+            amount: 0.2,
+            from: "center"
+          }
+        });
         document.body.offsetHeight; // Force reflow after scale reset
       }
 
     // Get current state (letters are scale: 1 if leaving grid, or already 1 otherwise)
     const state = Flip.getState(letters, {
       props: "transform,opacity",
-      simple: true // Keep trying simple approach
+      simple: true, // Keep trying simple approach
+      absolute: true // Match Flip.from to prevent coordinate system mismatches
     });
 
     // Remove current layout class
@@ -131,25 +146,33 @@ document.addEventListener('DOMContentLoaded', function () {
     // Force browser to apply layout before animating
     document.body.offsetHeight; // Force reflow
 
-    // Handle kingdom and bahrain text visibility
+    // Handle kingdom and bahrain text visibility with smoother timing
+    // Start fade immediately to coordinate with letter animations
     if (layouts[currentLayout] === 'final') {
       gsap.set([kingdom, bahrain], { display: 'block', opacity: 0 });
-      gsap.to([kingdom, bahrain], { opacity: 1, duration: 0.5, delay: 0.5 });
-    } else {
+      gsap.to([kingdom, bahrain], { 
+        opacity: 1, 
+        duration: 0.8, 
+        delay: 0.7, // Slight delay to let letters settle
+        ease: "power2.inOut"
+      });
+    } else if (layouts[getPreviousLayout()] === 'final') {
+      // Fade out immediately when leaving final layout
       gsap.to([kingdom, bahrain], {
         opacity: 0,
-        duration: 0.3,
+        duration: 0.4,
+        ease: "power2.in",
         onComplete: () => gsap.set([kingdom, bahrain], { display: 'none' })
       });
     }
 
-    // Animate the change with smooth transition
-    // Animate the layout change with Flip
+    // Animate the layout change with Flip - smoother transitions
     Flip.from(state, {
-      duration: 1,
-      ease: "circ.inOut",
-      stagger: 0.7,
+      duration: 1.2,
+      ease: "power2.inOut",
+      stagger: 0.08,
       scale: true, // Animate scale if it changed during Flip (shouldn't now)
+      absolute: true, // Use absolute positioning during animation
       onComplete: async function () {
         // --- Post-Flip Actions ---
         if (layouts[currentLayout] === 'grid') {
@@ -158,20 +181,21 @@ document.addEventListener('DOMContentLoaded', function () {
           // Create main timeline for grid animations
           const gridTimeline = gsap.timeline();
 
-          // First, scale down the letters smoothly
+          // First, scale down the letters smoothly with better easing
           gridTimeline.to(letters, {
             scale: 0.6,
-            duration: 0.8,
-            ease: "power2.inOut",
+            duration: 1.0,
+            ease: "power1.inOut",
             stagger: {
-              amount: 0.4,
-              from: "random"
+              amount: 0.3,
+              from: "center",
+              ease: "power1.inOut"
             }
           });
 
           // Then start the word animations with a slight overlap
           const wordTimeline = showWords();
-          gridTimeline.add(wordTimeline, "-=0.3");
+          gridTimeline.add(wordTimeline, "-=0.4");
 
           // Wait for all animations to complete
           await gridTimeline;
@@ -200,13 +224,11 @@ document.addEventListener('DOMContentLoaded', function () {
     await changeLayout();
 
     // Determine delay based on the layout that was *just displayed*
-    // Since changeLayout increments currentLayout, the layout just shown
-    // is at index (currentLayout - 1 + layouts.length) % layouts.length
-    const displayedLayoutIndex = (currentLayout + layouts.length - 1) % layouts.length;
-    const displayedLayoutName = layouts[displayedLayoutIndex];
-    // Grid delay: Allow 4 seconds viewing time *after* changeLayout (which includes showWords) finishes
-    // Increased viewing time for grid layout to allow for longer word animations
-    const delay = (displayedLayoutName === 'grid') ? 7000 : 3000;
+    // Since changeLayout increments currentLayout, the layout just shown is the previous one
+    const displayedLayoutName = layouts[getPreviousLayout()];
+    // Grid delay: Allow viewing time *after* changeLayout (which includes showWords) finishes
+    // Optimized viewing times for better flow
+    const delay = (displayedLayoutName === 'grid') ? 6000 : 2800;
 
     // Schedule the next iteration
     loopTimeout = setTimeout(animationLoop, delay);
