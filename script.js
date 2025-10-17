@@ -269,7 +269,7 @@ document.addEventListener('DOMContentLoaded', function () {
         opacity: 0,
         y: 20,
         duration: 0.6,
-        ease: "power2.inOut",
+        ease: "power4.inOut",
         onComplete: resolve
       });
     });
@@ -289,7 +289,7 @@ document.addEventListener('DOMContentLoaded', function () {
       gsap.to(document.body, {
         background: sceneColors[i],
         duration: 0.8,
-        ease: 'power2.inOut'
+        ease: 'power4.inOut'
       });
       await gsap.delayedCall(0.6, () => {});
     }
@@ -324,11 +324,11 @@ document.addEventListener('DOMContentLoaded', function () {
       stagger: {
         amount: 0.8,
         from: "random",
-        ease: "power2.inOut"
+        ease: "power4.inOut"
       },
       yoyo: true,
       repeat: 1,
-      ease: "power2.inOut"
+      ease: "power4.inOut"
     });
 
     // Create special sparkle effects around letters
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
     gsap.to(document.body, {
       background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a3e 25%, #2d1b69 50%, #1a1a3e 75%, #0f0f23 100%)',
       duration: 1.0,
-      ease: 'power2.inOut'
+      ease: 'power4.inOut'
     });
   }
 
@@ -387,7 +387,7 @@ document.addEventListener('DOMContentLoaded', function () {
       gsap.to(letter, {
         boxShadow: '0 0 60px rgba(206, 17, 38, 0.8), 0 0 100px rgba(206, 17, 38, 0.4), inset 0 0 30px rgba(255, 255, 255, 0.3)',
         duration: 0.8,
-        ease: "power2.inOut",
+        ease: "power4.inOut",
         yoyo: true,
         repeat: 2
       });
@@ -455,7 +455,7 @@ document.addEventListener('DOMContentLoaded', function () {
         scale: 2.3,
         textShadow: '0 0 50px rgba(206, 17, 38, 1), 0 0 100px rgba(255, 255, 255, 0.8)',
         duration: 0.6,
-        ease: "power2.inOut",
+        ease: "power4.inOut",
         yoyo: true,
         repeat: 1
       });
@@ -614,7 +614,7 @@ document.addEventListener('DOMContentLoaded', function () {
     await gsap.to([kingdom, bahrain], {
       textShadow: '0 0 30px rgba(206, 17, 38, 0.8), 0 0 60px rgba(206, 17, 38, 0.4)',
       duration: 0.6,
-      ease: "power2.inOut",
+      ease: "power4.inOut",
       yoyo: true,
       repeat: 1
     });
@@ -682,7 +682,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // STEP 5: Use Flip.from() to animate smoothly from old to new positions
       await Flip.from(state, {
         duration: 1.0,
-        ease: "power2.inOut",
+        ease: "power4.inOut",
         stagger: 0.03,
         scale: true,
         simple: true
@@ -701,7 +701,7 @@ document.addEventListener('DOMContentLoaded', function () {
           scale: 0.6,
           duration: 1.2,
           delay: 0.3,
-          ease: "power2.inOut",
+          ease: "power4.inOut",
           stagger: {
             amount: 0.4,
             from: "center",
@@ -784,7 +784,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       gsap.to(document.body, {
         duration: 8,
-        ease: 'power2.inOut',
+        ease: 'power4.inOut',
         background: `linear-gradient(135deg, ${color1} 0%, ${color2} 25%, ${color3} 50%, ${color2} 75%, ${color1} 100%)`
       });
     }, 12000);
