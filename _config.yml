@@ -1,3 +1,7 @@
 baseurl: ""
 serve: true
 url: ""
+source: .
+sass:
+  sass_dir: _sass
+  style: compressed
