@@ -1,3 +1,4 @@
 baseurl: ""
 serve: true
 url: ""
+source: .
