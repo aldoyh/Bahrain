@@ -75,15 +75,15 @@ document.addEventListener('DOMContentLoaded', function () {
     createParticle() {
       const particle = document.createElement('div');
       particle.className = `particle ${this.type}`;
-      
+
       const startX = Math.random() * 100;
       const startY = Math.random() * 100;
-      
+
       particle.style.left = `${startX}%`;
       particle.style.top = `${startY}%`;
-      
+
       this.container.appendChild(particle);
-      
+
       const tl = gsap.timeline({
         onComplete: () => {
           if (particle.parentNode) {
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
     start() {
       if (this.isActive) return;
       this.isActive = true;
-      
+
       const createInterval = setInterval(() => {
         if (!this.isActive) {
           clearInterval(createInterval);
@@ -141,7 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const particlesContainer = letter.querySelector('.particles-container');
     const narrativeType = letter.dataset.narrative;
     const storyArc = characterNarratives[narrativeType];
-    
+
     const tl = gsap.timeline();
     const baseDelay = isStaggered ? index * TIMING.letterStagger : 0;
 
@@ -157,7 +157,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     tl.call(() => {
-      const particleType = storyArc.emotion === 'wonder' ? 'gold' : 
+      const particleType = storyArc.emotion === 'wonder' ? 'gold' :
                          storyArc.emotion === 'warmth' ? 'silver' : 'default';
       const particles = new ParticleSystem(particlesContainer, particleType);
       particles.start();
@@ -205,10 +205,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // Final dramatic sequence
   function createFinalRevealSequence() {
     const finalTl = gsap.timeline();
-    
+
     letters.forEach((letter, index) => {
       const revealDelay = index * 0.3;
-      
+
       finalTl.add(() => {
         letter.classList.add('final-reveal-active');
         letter.classList.remove('reveal-active');
@@ -234,11 +234,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // Enhanced initial entrance
   function createInitialEntrance() {
     const entranceTl = gsap.timeline();
-    
+
     letters.forEach((letter, index) => {
       const narrativeType = letter.dataset.narrative;
       const storyArc = characterNarratives[narrativeType];
-      
+
       entranceTl.from(letter, {
         duration: 1.5,
         scale: 0.3,
@@ -299,7 +299,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function hideWordsAndNarratives() {
     return new Promise(resolve => {
       const tl = gsap.timeline();
-      
+
       narratives.forEach((narrative, index) => {
         tl.to(narrative, {
           // opacity: 0,
@@ -421,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function () {
       console.error('Animation error:', error);
     } finally {
       animationInProgress = false;
-      
+
       if (currentLayout === 0) {
         finalRevealTriggered = false;
         letters.forEach(letter => {
