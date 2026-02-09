@@ -18,6 +18,355 @@ document.addEventListener('DOMContentLoaded', function () {
     dramaDuration: .5
   };
 
+  // ═══════════════════════════════════════════
+  // SEARCH SYSTEM
+  // ═══════════════════════════════════════════
+  const searchContainer = document.getElementById('searchContainer');
+  const searchToggle = document.getElementById('searchToggle');
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+
+  // Build searchable data from the DOM
+  const searchData = Array.from(letters).map(letter => {
+    const wordEl = letter.querySelector('.word');
+    const titleEl = letter.querySelector('.story-title');
+    const textEl = letter.querySelector('.story-text');
+    const arabicEl = letter.querySelector('.arabic');
+    const letterChar = letter.textContent.trim().charAt(0);
+    const word = wordEl ? wordEl.childNodes[0].textContent.trim() : '';
+    const title = titleEl ? titleEl.textContent.trim() : '';
+    const story = textEl ? textEl.textContent.trim() : '';
+    const arabic = arabicEl ? arabicEl.textContent.trim() : '';
+    return { letter: letterChar, word, title, story, arabic, element: letter };
+  });
+
+  let searchOpen = false;
+
+  searchToggle.addEventListener('click', () => {
+    searchOpen = !searchOpen;
+    searchContainer.classList.toggle('active', searchOpen);
+    if (searchOpen) {
+      searchInput.focus();
+    } else {
+      searchInput.value = '';
+      clearSearch();
+    }
+  });
+
+  searchInput.addEventListener('input', (e) => {
+    const query = e.target.value.trim().toLowerCase();
+    if (query.length === 0) {
+      clearSearch();
+      return;
+    }
+    performSearch(query);
+  });
+
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      searchOpen = false;
+      searchContainer.classList.remove('active');
+      searchInput.value = '';
+      clearSearch();
+    }
+  });
+
+  // Close search when clicking outside
+  document.addEventListener('click', (e) => {
+    if (searchOpen && !searchContainer.contains(e.target)) {
+      searchOpen = false;
+      searchContainer.classList.remove('active');
+      searchInput.value = '';
+      clearSearch();
+    }
+  });
+
+  function performSearch(query) {
+    const matches = searchData.filter(item =>
+      item.letter.toLowerCase().includes(query) ||
+      item.word.toLowerCase().includes(query) ||
+      item.title.toLowerCase().includes(query) ||
+      item.story.toLowerCase().includes(query) ||
+      item.arabic.includes(query)
+    );
+
+    // Highlight matching letters, dim others
+    letters.forEach(l => {
+      l.classList.remove('search-match', 'search-dimmed');
+    });
+
+    if (matches.length > 0 && matches.length < searchData.length) {
+      const matchElements = new Set(matches.map(m => m.element));
+      letters.forEach(l => {
+        if (matchElements.has(l)) {
+          l.classList.add('search-match');
+        } else {
+          l.classList.add('search-dimmed');
+        }
+      });
+    }
+
+    // Build results dropdown
+    searchResults.innerHTML = '';
+    if (matches.length > 0) {
+      matches.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+          <span class="search-result-letter">${item.letter}</span>
+          <div class="search-result-text">
+            <div class="result-word">${highlightMatch(item.word, query)}</div>
+            <div class="result-story">${highlightMatch(item.title, query)}</div>
+          </div>
+        `;
+        div.addEventListener('click', () => {
+          focusLetter(item.element);
+        });
+        searchResults.appendChild(div);
+      });
+      searchResults.classList.add('visible');
+
+      // Animate results in
+      gsap.from('.search-result-item', {
+        opacity: 0,
+        y: -10,
+        stagger: 0.05,
+        duration: 0.3,
+        ease: 'power2.out'
+      });
+    } else {
+      const noResult = document.createElement('div');
+      noResult.className = 'search-result-item';
+      noResult.innerHTML = '<span class="search-result-text" style="color:rgba(245,233,217,0.5)">No matches found</span>';
+      searchResults.appendChild(noResult);
+      searchResults.classList.add('visible');
+    }
+  }
+
+  function highlightMatch(text, query) {
+    if (!query) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return text.replace(regex, '<span class="search-highlight">$1</span>');
+  }
+
+  function clearSearch() {
+    searchResults.classList.remove('visible');
+    searchResults.innerHTML = '';
+    letters.forEach(l => {
+      l.classList.remove('search-match', 'search-dimmed');
+    });
+  }
+
+  function focusLetter(letterEl) {
+    // Pulse the letter
+    letterEl.classList.remove('search-focus');
+    void letterEl.offsetWidth; // force reflow
+    letterEl.classList.add('search-focus');
+    gsap.to(letterEl, {
+      scale: 1.2,
+      duration: 0.3,
+      ease: 'back.out(1.7)',
+      yoyo: true,
+      repeat: 1
+    });
+    setTimeout(() => letterEl.classList.remove('search-focus'), 1600);
+  }
+
+  // ═══════════════════════════════════════════
+  // VOICE / SPEECH SYNTHESIS SYSTEM
+  // ═══════════════════════════════════════════
+  const voiceBtn = document.getElementById('voiceBtn');
+  const voiceIcon = voiceBtn.querySelector('.voice-icon');
+  const voiceStopIcon = voiceBtn.querySelector('.voice-stop-icon');
+  const voiceWave = document.getElementById('voiceWave');
+
+  let isSpeaking = false;
+  let currentUtterance = null;
+  let speechQueue = [];
+  let currentSpeechIndex = -1;
+
+  voiceBtn.addEventListener('click', () => {
+    if (isSpeaking) {
+      stopSpeaking();
+    } else {
+      startNarration();
+    }
+  });
+
+  function startNarration() {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Speech synthesis not supported');
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    isSpeaking = true;
+    voiceBtn.classList.add('speaking');
+    voiceIcon.style.display = 'none';
+    voiceStopIcon.style.display = 'block';
+    voiceWave.classList.add('active');
+    currentSpeechIndex = 0;
+    speakNext();
+  }
+
+  function speakNext() {
+    if (currentSpeechIndex >= searchData.length || !isSpeaking) {
+      stopSpeaking();
+      return;
+    }
+
+    const item = searchData[currentSpeechIndex];
+    const text = `${item.word}. ${item.title}. ${item.story}`;
+
+    // Highlight active letter
+    letters.forEach(l => l.classList.remove('search-match'));
+    item.element.classList.add('search-match');
+
+    // Animate the active letter
+    gsap.to(item.element, {
+      scale: 1.15,
+      boxShadow: '0 0 40px rgba(206, 17, 38, 0.5)',
+      duration: 0.4,
+      ease: 'back.out(1.7)'
+    });
+
+    currentUtterance = new SpeechSynthesisUtterance(text);
+    currentUtterance.rate = 0.9;
+    currentUtterance.pitch = 1;
+    currentUtterance.volume = 1;
+
+    // Try to select a good English voice
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
+                         voices.find(v => v.lang.startsWith('en'));
+    if (englishVoice) currentUtterance.voice = englishVoice;
+
+    currentUtterance.onend = () => {
+      // Reset letter
+      gsap.to(item.element, {
+        scale: 1,
+        boxShadow: item.element.classList.contains('B') || item.element.classList.contains('H') ||
+                   item.element.classList.contains('A2') || item.element.classList.contains('N')
+          ? '0 8px 32px rgba(206, 17, 38, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
+          : '0 8px 32px rgba(245, 233, 217, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)',
+        duration: 0.4,
+        ease: 'power2.out'
+      });
+      item.element.classList.remove('search-match');
+
+      currentSpeechIndex++;
+      if (isSpeaking) {
+        setTimeout(speakNext, 400);
+      }
+    };
+
+    currentUtterance.onerror = () => {
+      currentSpeechIndex++;
+      if (isSpeaking) speakNext();
+    };
+
+    window.speechSynthesis.speak(currentUtterance);
+  }
+
+  function stopSpeaking() {
+    isSpeaking = false;
+    window.speechSynthesis.cancel();
+    voiceBtn.classList.remove('speaking');
+    voiceIcon.style.display = 'block';
+    voiceStopIcon.style.display = 'none';
+    voiceWave.classList.remove('active');
+    letters.forEach(l => l.classList.remove('search-match'));
+    currentSpeechIndex = -1;
+  }
+
+  // Load voices (some browsers need this event)
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      window.speechSynthesis.getVoices();
+    };
+  }
+
+  // ═══════════════════════════════════════════
+  // ENHANCED INTERACTIONS - Ripple, Glow Trail, Stardust
+  // ═══════════════════════════════════════════
+  letters.forEach(letter => {
+    // Add glow trail element
+    const glowTrail = document.createElement('div');
+    glowTrail.className = 'glow-trail';
+    letter.appendChild(glowTrail);
+
+    // Mouse move glow trail
+    letter.addEventListener('mousemove', (e) => {
+      const rect = letter.getBoundingClientRect();
+      const x = e.clientX - rect.left - 30;
+      const y = e.clientY - rect.top - 30;
+      glowTrail.style.left = x + 'px';
+      glowTrail.style.top = y + 'px';
+    });
+
+    // Click ripple effect
+    letter.addEventListener('click', (e) => {
+      const rect = letter.getBoundingClientRect();
+      const ripple = document.createElement('div');
+      ripple.className = 'ripple';
+      const size = Math.max(rect.width, rect.height) * 2;
+      ripple.style.width = ripple.style.height = size + 'px';
+      ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+      ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+      letter.appendChild(ripple);
+
+      gsap.to(ripple, {
+        scale: 1,
+        opacity: 0,
+        duration: 0.6,
+        ease: 'power2.out',
+        onComplete: () => ripple.remove()
+      });
+
+      // Spawn stardust particles on click
+      for (let i = 0; i < 8; i++) {
+        const dust = document.createElement('div');
+        dust.style.cssText = `
+          position: absolute;
+          width: 4px; height: 4px;
+          background: radial-gradient(circle, rgba(212,175,55,0.9), transparent);
+          border-radius: 50%;
+          pointer-events: none;
+          left: ${e.clientX - rect.left}px;
+          top: ${e.clientY - rect.top}px;
+          z-index: 10;
+        `;
+        letter.appendChild(dust);
+        const angle = (Math.PI * 2 * i) / 8;
+        const distance = 30 + Math.random() * 40;
+        gsap.to(dust, {
+          x: Math.cos(angle) * distance,
+          y: Math.sin(angle) * distance,
+          opacity: 0,
+          scale: 0,
+          duration: 0.6 + Math.random() * 0.3,
+          ease: 'power2.out',
+          onComplete: () => dust.remove()
+        });
+      }
+
+      // Speak this letter's narrative on click if not already speaking
+      if (!isSpeaking && 'speechSynthesis' in window) {
+        const idx = Array.from(letters).indexOf(letter);
+        if (idx >= 0) {
+          const item = searchData[idx];
+          const text = `${item.word}. ${item.title}`;
+          const utt = new SpeechSynthesisUtterance(text);
+          utt.rate = 0.95;
+          const voices = window.speechSynthesis.getVoices();
+          const voice = voices.find(v => v.lang.startsWith('en'));
+          if (voice) utt.voice = voice;
+          window.speechSynthesis.speak(utt);
+        }
+      }
+    });
+  });
+
   // Character narratives with emotional arcs
   const characterNarratives = {
     shores: {
