@@ -648,3 +648,40 @@ body::before {
     filter: blur(0px) brightness(1);
   }
 }
+
+/* Add these rules */
+
+.container * {
+  will-change: transform, opacity, filter, box-shadow;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.letter {
+  /* Prevent any layout shift from content */
+  contain: layout style paint;
+  /* Remove any implicit transition that fights FLIP */
+  transition: none !important;
+}
+
+.word,
+.narrative,
+.kingdom,
+.bahrain {
+  transition: none !important;
+  /* let GSAP/FLIP own everything */
+}
+
+/* Make sure words & narratives don't affect FLIP bounding box */
+.word,
+.narrative {
+  position: absolute;
+  pointer-events: none;
+  /* prevent interaction interference */
+}
+
+/* .grid should not fight FLIP */
+.container.grid {
+  display: grid;
+  place-items: center;
+}
