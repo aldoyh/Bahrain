@@ -671,6 +671,201 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 
+  // ═══════════════════════════════════════════
+  // MOBILE DETECTION & SHOWCASE SYSTEM
+  // ═══════════════════════════════════════════
+  const isMobileQuery = window.matchMedia('(max-width: 768px)');
+  let isMobile = isMobileQuery.matches;
+  let showcaseIndex = 0;
+  let showcaseAutoTimer = null;
+  const showcaseDots = document.getElementById('showcaseDots');
+  const swipeHint = document.getElementById('swipeHint');
+
+  // Build dots for showcase navigation
+  function buildShowcaseDots() {
+    showcaseDots.innerHTML = '';
+    letters.forEach((_, i) => {
+      const dot = document.createElement('div');
+      dot.className = 'showcase-dot' + (i === 0 ? ' active' : '');
+      dot.addEventListener('click', () => {
+        if (isMobile) showShowcaseCard(i);
+      });
+      showcaseDots.appendChild(dot);
+    });
+  }
+  buildShowcaseDots();
+
+  function updateShowcaseDots(index) {
+    const dots = showcaseDots.querySelectorAll('.showcase-dot');
+    dots.forEach((d, i) => {
+      d.classList.toggle('active', i === index);
+    });
+  }
+
+  function showShowcaseCard(index, direction = 0) {
+    showcaseIndex = index;
+    updateShowcaseDots(index);
+
+    letters.forEach((letter, i) => {
+      if (i === index) {
+        letter.classList.add('showcase-active');
+        // Animate in
+        gsap.fromTo(letter, {
+          opacity: 0,
+          scale: 0.85,
+          x: direction > 0 ? 80 : direction < 0 ? -80 : 0,
+          rotationY: direction * 15
+        }, {
+          opacity: 1,
+          scale: 1,
+          x: 0,
+          rotationY: 0,
+          duration: 0.6,
+          ease: 'back.out(1.2)'
+        });
+
+        // Animate word in
+        const word = letter.querySelector('.word');
+        const narrative = letter.querySelector('.narrative');
+        if (word) {
+          gsap.fromTo(word, { opacity: 0, y: 20 }, {
+            opacity: 1, y: 0, duration: 0.5, delay: 0.2, ease: 'power2.out'
+          });
+        }
+        if (narrative) {
+          gsap.fromTo(narrative, { opacity: 0, y: 25, scale: 0.95 }, {
+            opacity: 1, y: 0, scale: 1, duration: 0.6, delay: 0.35, ease: 'power2.out'
+          });
+        }
+
+        // Spawn particles on active card
+        const pc = letter.querySelector('.particles-container');
+        if (pc) {
+          const narrativeType = letter.dataset.narrative;
+          const storyArc = characterNarratives[narrativeType];
+          const pType = storyArc.emotion === 'wonder' ? 'gold' :
+                        storyArc.emotion === 'warmth' ? 'silver' : 'default';
+          const ps = new ParticleSystem(pc, pType);
+          ps.start();
+        }
+      } else {
+        // Animate out previous
+        if (letter.classList.contains('showcase-active')) {
+          gsap.to(letter, {
+            opacity: 0,
+            scale: 0.85,
+            x: direction > 0 ? -60 : direction < 0 ? 60 : 0,
+            duration: 0.35,
+            ease: 'power2.in',
+            onComplete: () => letter.classList.remove('showcase-active')
+          });
+        } else {
+          letter.classList.remove('showcase-active');
+          gsap.set(letter, { opacity: 0 });
+        }
+      }
+    });
+  }
+
+  function nextShowcaseCard() {
+    const next = (showcaseIndex + 1) % letters.length;
+    showShowcaseCard(next, 1);
+  }
+
+  function prevShowcaseCard() {
+    const prev = (showcaseIndex - 1 + letters.length) % letters.length;
+    showShowcaseCard(prev, -1);
+  }
+
+  // Auto-advance showcase cards
+  function startShowcaseAuto() {
+    clearInterval(showcaseAutoTimer);
+    showcaseAutoTimer = setInterval(nextShowcaseCard, 5000);
+  }
+
+  function stopShowcaseAuto() {
+    clearInterval(showcaseAutoTimer);
+  }
+
+  // ═══════════════════════════════════════════
+  // TOUCH / SWIPE GESTURE SUPPORT
+  // ═══════════════════════════════════════════
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+
+  container.addEventListener('touchstart', (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+    stopShowcaseAuto();
+  }, { passive: true });
+
+  container.addEventListener('touchend', (e) => {
+    if (!isMobile) return;
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+
+    // Only count horizontal swipes (not scrolls)
+    if (absDx > 40 && absDx > absDy * 1.5 && dt < 500) {
+      if (dx < 0) {
+        nextShowcaseCard();
+      } else {
+        prevShowcaseCard();
+      }
+      // Hide hint after first swipe
+      swipeHint.classList.remove('visible');
+    }
+
+    // Restart auto-advance after 8s idle
+    setTimeout(startShowcaseAuto, 8000);
+  }, { passive: true });
+
+  // ═══════════════════════════════════════════
+  // ENTER / EXIT MOBILE SHOWCASE MODE
+  // ═══════════════════════════════════════════
+  const allLayouts = ['final', 'plain', 'columns', 'rows', 'grid', 'showcase'];
+
+  function enterShowcaseMode() {
+    container.classList.remove('final', 'plain', 'columns', 'rows', 'grid');
+    container.classList.add('showcase');
+    showcaseDots.classList.add('visible');
+    swipeHint.classList.add('visible');
+
+    // Hide swipe hint after 4 seconds
+    setTimeout(() => swipeHint.classList.remove('visible'), 4000);
+
+    // Reset all letters, then show first
+    letters.forEach(l => {
+      l.classList.remove('showcase-active');
+      gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position' });
+    });
+
+    showShowcaseCard(0, 0);
+    startShowcaseAuto();
+  }
+
+  function exitShowcaseMode() {
+    stopShowcaseAuto();
+    container.classList.remove('showcase');
+    showcaseDots.classList.remove('visible');
+    swipeHint.classList.remove('visible');
+
+    letters.forEach(l => {
+      l.classList.remove('showcase-active');
+      gsap.set(l, { clearProps: 'all' });
+    });
+    gsap.set(letters, { scale: 1, opacity: 1 });
+    gsap.set(words, { opacity: 0, y: 20 });
+    gsap.set(narratives, { opacity: 0, y: 30, scale: 0.9 });
+  }
+
+  // ═══════════════════════════════════════════
+  // DESKTOP LAYOUT CYCLING (original behavior)
+  // ═══════════════════════════════════════════
   const layouts = ['final', 'plain', 'columns', 'rows', 'grid'];
   let currentLayout = 0;
   let animationInProgress = false;
@@ -682,9 +877,6 @@ document.addEventListener('DOMContentLoaded', function () {
     animationInProgress = true;
 
     try {
-      // ────────────────────────────────────────────────
-      //  Prepare – hide distracting content before capture
-      // ────────────────────────────────────────────────
       gsap.killTweensOf([words, narratives, kingdom, bahrain]);
 
       const hideTl = gsap.timeline({ defaults: { duration: 0.4, ease: "power2.in" } });
@@ -693,25 +885,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
       await hideTl;
 
-      // ────────────────────────────────────────────────
-      // 1. Capture clean state (only letters matter for FLIP)
-      // ────────────────────────────────────────────────
       const state = Flip.getState(letters, {
         props: "transform,filter,opacity,width,height,margin,padding",
         simple: true,
         tolerance: 0.01
       });
 
-      // ────────────────────────────────────────────────
-      // 2. Apply new layout class immediately
-      // ────────────────────────────────────────────────
       container.classList.remove(...layouts);
       currentLayout = (currentLayout + 1) % layouts.length;
       container.classList.add(layouts[currentLayout]);
 
-      // ────────────────────────────────────────────────
-      // 3. FLIP — smooth position & size change
-      // ────────────────────────────────────────────────
       await new Promise(resolve => {
         Flip.from(state, {
           duration: 1.6,
@@ -726,9 +909,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       });
 
-      // ────────────────────────────────────────────────
-      // 4. Reveal content appropriate to new layout
-      // ────────────────────────────────────────────────
       const appearTl = gsap.timeline();
 
       if (layouts[currentLayout] === 'final') {
@@ -767,7 +947,6 @@ document.addEventListener('DOMContentLoaded', function () {
           stagger: 0.1
         }, 1);
       } else {
-        // other layouts — gentle word reveal if desired
         appearTl.to(words, {
           opacity: 0.85,
           y: 0,
@@ -784,13 +963,27 @@ document.addEventListener('DOMContentLoaded', function () {
     } finally {
       animationInProgress = false;
 
-      // Schedule next cycle
       const delay = layouts[currentLayout] === 'grid' ? 9000 : 3800;
       loopTimeout = setTimeout(animationLoop, delay);
     }
   }
 
   async function animationLoop() {
+    // If mobile, use showcase mode instead
+    if (isMobile) {
+      if (!container.classList.contains('showcase')) {
+        enterShowcaseMode();
+      }
+      return;
+    }
+
+    // Exit showcase if we were in it
+    if (container.classList.contains('showcase')) {
+      exitShowcaseMode();
+      container.classList.add('final');
+      currentLayout = 0;
+    }
+
     clearTimeout(loopTimeout);
     await changeLayout();
     const displayedLayoutIndex = (currentLayout + layouts.length - 1) % layouts.length;
@@ -799,13 +992,35 @@ document.addEventListener('DOMContentLoaded', function () {
     loopTimeout = setTimeout(animationLoop, delay);
   }
 
+  // Listen for viewport changes (rotation, resize)
+  isMobileQuery.addEventListener('change', (e) => {
+    isMobile = e.matches;
+    clearTimeout(loopTimeout);
+    stopShowcaseAuto();
+
+    if (isMobile) {
+      enterShowcaseMode();
+    } else {
+      exitShowcaseMode();
+      container.classList.add('final');
+      currentLayout = 0;
+      gsap.set(letters, { scale: 1, opacity: 1 });
+      loopTimeout = setTimeout(animationLoop, 2000);
+    }
+  });
+
   createInitialEntrance().then(() => {
-    loopTimeout = setTimeout(animationLoop, 3000);
+    if (isMobile) {
+      enterShowcaseMode();
+    } else {
+      loopTimeout = setTimeout(animationLoop, 3000);
+    }
   });
 });
 
 window.addEventListener('resize', () => {
-  if (!animationInProgress) {
+  const mobileNow = window.innerWidth <= 768;
+  if (!mobileNow && !animationInProgress) {
     clearTimeout(loopTimeout);
     loopTimeout = setTimeout(animationLoop, 2500);
   }
