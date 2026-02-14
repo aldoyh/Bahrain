@@ -406,11 +406,42 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   };
 
-  // Set initial states
+  // Set initial states — letters are ALWAYS fully opaque
   gsap.set(words, { opacity: 0, y: 20 });
   gsap.set(narratives, { opacity: 0, y: 30, scale: 0.9 });
   gsap.set([kingdom, bahrain], { opacity: 0, display: 'none' });
   gsap.set(letters, { scale: 1, opacity: 1 });
+
+  // ═══════════════════════════════════════════
+  // PLAY / PAUSE CONTROL
+  // ═══════════════════════════════════════════
+  const playPauseBtn = document.getElementById('playPauseBtn');
+  const ppPause = playPauseBtn.querySelector('.pp-pause');
+  const ppPlay = playPauseBtn.querySelector('.pp-play');
+  let isPaused = false;
+
+  playPauseBtn.addEventListener('click', () => {
+    isPaused = !isPaused;
+    playPauseBtn.classList.toggle('paused', isPaused);
+    ppPause.style.display = isPaused ? 'none' : 'block';
+    ppPlay.style.display = isPaused ? 'block' : 'none';
+    playPauseBtn.title = isPaused ? 'Play animation' : 'Pause animation';
+
+    if (isPaused) {
+      clearTimeout(loopTimeout);
+      stopShowcaseAuto();
+      clearTimeout(soloTimer);
+    } else {
+      // Resume
+      if (isMobile && container.classList.contains('showcase')) {
+        startShowcaseAuto();
+      } else if (container.classList.contains('solo')) {
+        advanceSoloLetter();
+      } else {
+        loopTimeout = setTimeout(animationLoop, 1500);
+      }
+    }
+  });
 
   // Particle System
   class ParticleSystem {
@@ -827,10 +858,9 @@ document.addEventListener('DOMContentLoaded', function () {
   // ═══════════════════════════════════════════
   // ENTER / EXIT MOBILE SHOWCASE MODE
   // ═══════════════════════════════════════════
-  const allLayouts = ['final', 'plain', 'columns', 'rows', 'grid', 'showcase'];
 
   function enterShowcaseMode() {
-    container.classList.remove('final', 'plain', 'columns', 'rows', 'grid');
+    container.classList.remove('final', 'plain', 'columns', 'rows', 'grid', 'solo');
     container.classList.add('showcase');
     showcaseDots.classList.add('visible');
     swipeHint.classList.add('visible');
@@ -864,34 +894,46 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ═══════════════════════════════════════════
-  // DESKTOP LAYOUT CYCLING (original behavior)
+  // LAYOUT CYCLING ENGINE
   // ═══════════════════════════════════════════
-  const layouts = ['final', 'plain', 'columns', 'rows', 'grid'];
-  let currentLayout = 0;
+  // Order: plain → final → columns → rows → grid → solo (one-by-one) → loop
+  const layouts = ['plain', 'final', 'columns', 'rows', 'grid'];
+  const ALL_LAYOUT_CLASSES = ['plain', 'final', 'columns', 'rows', 'grid', 'solo', 'showcase'];
+  let currentLayout = 0;       // starts at plain
   let animationInProgress = false;
   let loopTimeout;
-  let finalRevealTriggered = false;
+  let soloTimer;
+  let soloIndex = 0;
+
+  // Helper: ensure letters never go transparent
+  function ensureLettersVisible() {
+    gsap.set(letters, { opacity: 1 });
+  }
 
   async function changeLayout() {
-    if (animationInProgress) return;
+    if (animationInProgress || isPaused) return;
     animationInProgress = true;
 
     try {
+      // ── Hide words/narratives/kingdom before FLIP ──
       gsap.killTweensOf([words, narratives, kingdom, bahrain]);
 
       const hideTl = gsap.timeline({ defaults: { duration: 0.4, ease: "power2.in" } });
       hideTl.to([words, narratives], { opacity: 0, y: 15, scale: 0.92 }, 0);
       hideTl.to([kingdom, bahrain], { opacity: 0 }, 0);
-
       await hideTl;
 
+      // Letters stay fully visible
+      ensureLettersVisible();
+
+      // ── Capture → switch → FLIP ──
       const state = Flip.getState(letters, {
-        props: "transform,filter,opacity,width,height,margin,padding",
+        props: "transform,filter,width,height,margin,padding",
         simple: true,
         tolerance: 0.01
       });
 
-      container.classList.remove(...layouts);
+      container.classList.remove(...ALL_LAYOUT_CLASSES);
       currentLayout = (currentLayout + 1) % layouts.length;
       container.classList.add(layouts[currentLayout]);
 
@@ -899,19 +941,22 @@ document.addEventListener('DOMContentLoaded', function () {
         Flip.from(state, {
           duration: 1.6,
           ease: "power3.inOut",
-          stagger: {
-            amount: 0.45,
-            from: "center"
-          },
+          stagger: { amount: 0.45, from: "center" },
           scale: true,
           simple: true,
           onComplete: resolve
         });
       });
 
-      const appearTl = gsap.timeline();
+      // Letters stay visible after FLIP
+      ensureLettersVisible();
 
-      if (layouts[currentLayout] === 'final') {
+      // ── Reveal content for new layout ──
+      const appearTl = gsap.timeline();
+      const layout = layouts[currentLayout];
+
+      if (layout === 'final') {
+        gsap.set([kingdom, bahrain], { display: 'block' });
         appearTl.to([kingdom, bahrain], {
           duration: 2.2,
           opacity: 1,
@@ -922,38 +967,20 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 0.6);
       }
 
-      if (layouts[currentLayout] === 'grid') {
-        appearTl.to(letters, {
-          scale: 0.68,
-          duration: 1.2,
-          ease: "power2.out",
-          stagger: 0.06
-        }, 0.3);
-
+      if (layout === 'grid') {
         appearTl.to(words, {
-          opacity: 1,
-          y: 0,
+          opacity: 1, y: 0,
           duration: 1.4,
           ease: "back.out(1.6)",
           stagger: 0.08
-        }, 0.8);
+        }, 0.6);
 
         appearTl.to(narratives, {
-          opacity: 1,
-          y: 0,
-          scale: 1,
+          opacity: 1, y: 0, scale: 1,
           duration: 1.6,
           ease: "power3.out",
           stagger: 0.1
-        }, 1);
-      } else {
-        appearTl.to(words, {
-          opacity: 0.85,
-          y: 0,
-          duration: 1,
-          ease: "power2.out",
-          stagger: 0.07
-        }, 0.6);
+        }, 0.9);
       }
 
       await appearTl;
@@ -963,12 +990,140 @@ document.addEventListener('DOMContentLoaded', function () {
     } finally {
       animationInProgress = false;
 
-      const delay = layouts[currentLayout] === 'grid' ? 9000 : 3800;
-      loopTimeout = setTimeout(animationLoop, delay);
+      // After grid → enter solo mode; otherwise schedule next
+      if (layouts[currentLayout] === 'grid') {
+        loopTimeout = setTimeout(enterSoloMode, 8000);
+      } else {
+        const delay = layouts[currentLayout] === 'final' ? 5000 : 3800;
+        loopTimeout = setTimeout(animationLoop, delay);
+      }
     }
   }
 
+  // ═══════════════════════════════════════════
+  // SOLO ONE-BY-ONE REVEAL
+  // ═══════════════════════════════════════════
+  function enterSoloMode() {
+    if (isPaused) return;
+
+    // Clean up
+    gsap.killTweensOf([words, narratives, kingdom, bahrain]);
+    gsap.set([words, narratives], { opacity: 0 });
+    gsap.set([kingdom, bahrain], { opacity: 0 });
+
+    container.classList.remove(...ALL_LAYOUT_CLASSES);
+    container.classList.add('solo');
+
+    // Hide all letters, then reveal one by one
+    letters.forEach(l => {
+      l.classList.remove('solo-active');
+      gsap.set(l, { opacity: 0, scale: 0.7, x: 0, y: 0 });
+    });
+
+    soloIndex = 0;
+    advanceSoloLetter();
+  }
+
+  function advanceSoloLetter() {
+    if (isPaused) return;
+
+    // If we've shown all 7, exit solo → loop back to plain
+    if (soloIndex >= letters.length) {
+      exitSoloMode();
+      return;
+    }
+
+    const letter = letters[soloIndex];
+    const word = letter.querySelector('.word');
+    const narrative = letter.querySelector('.narrative');
+    const narrativeType = letter.dataset.narrative;
+    const storyArc = characterNarratives[narrativeType];
+
+    // Hide previous
+    if (soloIndex > 0) {
+      const prev = letters[soloIndex - 1];
+      const prevWord = prev.querySelector('.word');
+      const prevNarr = prev.querySelector('.narrative');
+      gsap.to(prev, { opacity: 0, scale: 0.7, duration: 0.5, ease: "power2.in" });
+      gsap.to(prevWord, { opacity: 0, y: 15, duration: 0.3 });
+      gsap.to(prevNarr, { opacity: 0, y: 15, duration: 0.3 });
+      prev.classList.remove('solo-active');
+    }
+
+    // Show current letter
+    letter.classList.add('solo-active');
+    const tl = gsap.timeline();
+
+    // Letter appears: center of viewport
+    tl.to(letter, {
+      opacity: 1,
+      scale: 1,
+      duration: 0.8,
+      ease: "back.out(1.4)"
+    }, 0.3);
+
+    // Particles burst
+    tl.call(() => {
+      const pc = letter.querySelector('.particles-container');
+      if (pc) {
+        const pType = storyArc.emotion === 'wonder' ? 'gold' :
+                      storyArc.emotion === 'warmth' ? 'silver' : 'default';
+        new ParticleSystem(pc, pType).start();
+      }
+    }, null, 0.6);
+
+    // Word fades in slowly
+    tl.to(word, {
+      opacity: 1,
+      y: 0,
+      duration: 1.2,
+      ease: "power2.out"
+    }, 1.0);
+
+    // Narrative fades in slowly
+    tl.to(narrative, {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      duration: 1.4,
+      ease: "power3.out"
+    }, 1.6);
+
+    soloIndex++;
+
+    // Wait for the full reveal + reading time, then advance
+    soloTimer = setTimeout(advanceSoloLetter, 6000);
+  }
+
+  function exitSoloMode() {
+    clearTimeout(soloTimer);
+
+    // Hide last solo letter
+    letters.forEach(l => {
+      l.classList.remove('solo-active');
+    });
+
+    container.classList.remove('solo');
+    container.classList.add('plain');
+    currentLayout = 0;
+
+    // Reset everything cleanly for the next loop
+    gsap.set(letters, { opacity: 1, scale: 1, x: 0, y: 0, clearProps: 'position,width,height' });
+    gsap.set(words, { opacity: 0, y: 20 });
+    gsap.set(narratives, { opacity: 0, y: 30, scale: 0.9 });
+    gsap.set([kingdom, bahrain], { opacity: 0 });
+
+    if (!isPaused) {
+      loopTimeout = setTimeout(animationLoop, 3000);
+    }
+  }
+
+  // ═══════════════════════════════════════════
+  // MAIN ANIMATION LOOP
+  // ═══════════════════════════════════════════
   async function animationLoop() {
+    if (isPaused) return;
+
     // If mobile, use showcase mode instead
     if (isMobile) {
       if (!container.classList.contains('showcase')) {
@@ -980,32 +1135,38 @@ document.addEventListener('DOMContentLoaded', function () {
     // Exit showcase if we were in it
     if (container.classList.contains('showcase')) {
       exitShowcaseMode();
-      container.classList.add('final');
+      container.classList.remove(...ALL_LAYOUT_CLASSES);
+      container.classList.add('plain');
       currentLayout = 0;
+    }
+
+    // Exit solo if stuck
+    if (container.classList.contains('solo')) {
+      exitSoloMode();
+      return;
     }
 
     clearTimeout(loopTimeout);
     await changeLayout();
-    const displayedLayoutIndex = (currentLayout + layouts.length - 1) % layouts.length;
-    const displayedLayoutName = layouts[displayedLayoutIndex];
-    const delay = (displayedLayoutName === 'grid') ? 8000 : 3000;
-    loopTimeout = setTimeout(animationLoop, delay);
   }
 
   // Listen for viewport changes (rotation, resize)
   isMobileQuery.addEventListener('change', (e) => {
     isMobile = e.matches;
     clearTimeout(loopTimeout);
+    clearTimeout(soloTimer);
     stopShowcaseAuto();
 
     if (isMobile) {
+      if (container.classList.contains('solo')) exitSoloMode();
       enterShowcaseMode();
     } else {
       exitShowcaseMode();
-      container.classList.add('final');
+      container.classList.remove(...ALL_LAYOUT_CLASSES);
+      container.classList.add('plain');
       currentLayout = 0;
       gsap.set(letters, { scale: 1, opacity: 1 });
-      loopTimeout = setTimeout(animationLoop, 2000);
+      if (!isPaused) loopTimeout = setTimeout(animationLoop, 2000);
     }
   });
 
