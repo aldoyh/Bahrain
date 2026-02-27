@@ -8,14 +8,49 @@ document.addEventListener('DOMContentLoaded', function () {
   const kingdom = document.querySelector('.kingdom');
   const bahrain = document.querySelector('.bahrain');
 
-  // Enhanced timing controls
+  // ═══════════════════════════════════════════
+  // BEAT TIMING — Dancer-formation rhythm system
+  // ═══════════════════════════════════════════
+  const BEAT = {
+    bpm: 72,                   // tempo: 72 beats per minute
+    get interval() { return 60 / this.bpm; },  // ~0.833s per beat
+    half() { return this.interval / 2; },
+    quarter() { return this.interval / 4; },
+    double() { return this.interval * 2; },
+    bars(n) { return this.interval * 4 * n; },  // 4 beats per bar
+  };
+
   const TIMING = {
-    letterStagger: 0.2,
-    wordReveal: 1.2,
-    narrativeDelay: 0.8,
-    finalRevealStart: 1000,
+    letterStagger: BEAT.quarter(),     // ~0.21s
+    wordReveal: BEAT.interval,         // ~0.83s
+    narrativeDelay: BEAT.half(),       // ~0.42s
     particleDuration: 3,
-    dramaDuration: .5
+    formationHold: BEAT.bars(4),       // hold formation ~13s
+    soloRevealTime: BEAT.bars(2),      // per solo letter ~6.6s
+  };
+
+  // Choreography patterns for stagger
+  const CHOREO = {
+    // Center-out: middle letters move first, edges last
+    centerOut: { amount: 0.5, from: 'center' },
+    // Edges-in: edges move first, center last
+    edgesIn: { amount: 0.5, from: 'edges' },
+    // Cascade left-to-right like a wave
+    cascade: { each: BEAT.quarter(), from: 'start' },
+    // Reverse cascade
+    reverseCascade: { each: BEAT.quarter(), from: 'end' },
+    // Random burst
+    burst: { amount: 0.4, from: 'random' },
+  };
+
+  // Easing presets — snappy dancer moves
+  const EASE = {
+    snapIn: 'back.out(1.7)',           // overshoot snap
+    snapOut: 'back.in(1.4)',           // pull back before exit
+    elastic: 'elastic.out(1.2, 0.4)',  // bouncy arrival
+    whip: 'power4.out',               // fast start, smooth settle
+    sway: 'sine.inOut',               // gentle sway
+    punch: 'expo.out',                // explosive entry
   };
 
   // ═══════════════════════════════════════════
@@ -71,7 +106,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Close search when clicking outside
   document.addEventListener('click', (e) => {
     if (searchOpen && !searchContainer.contains(e.target)) {
       searchOpen = false;
@@ -90,7 +124,6 @@ document.addEventListener('DOMContentLoaded', function () {
       item.arabic.includes(query)
     );
 
-    // Highlight matching letters, dim others
     letters.forEach(l => {
       l.classList.remove('search-match', 'search-dimmed');
     });
@@ -106,7 +139,6 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
-    // Build results dropdown
     searchResults.innerHTML = '';
     if (matches.length > 0) {
       matches.forEach(item => {
@@ -126,7 +158,6 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       searchResults.classList.add('visible');
 
-      // Animate results in
       gsap.from('.search-result-item', {
         opacity: 0,
         y: -10,
@@ -158,14 +189,13 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   function focusLetter(letterEl) {
-    // Pulse the letter
     letterEl.classList.remove('search-focus');
-    void letterEl.offsetWidth; // force reflow
+    void letterEl.offsetWidth;
     letterEl.classList.add('search-focus');
     gsap.to(letterEl, {
       scale: 1.2,
       duration: 0.3,
-      ease: 'back.out(1.7)',
+      ease: EASE.snapIn,
       yoyo: true,
       repeat: 1
     });
@@ -182,7 +212,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   let isSpeaking = false;
   let currentUtterance = null;
-  let speechQueue = [];
   let currentSpeechIndex = -1;
 
   voiceBtn.addEventListener('click', () => {
@@ -218,16 +247,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const item = searchData[currentSpeechIndex];
     const text = `${item.word}. ${item.title}. ${item.story}`;
 
-    // Highlight active letter
     letters.forEach(l => l.classList.remove('search-match'));
     item.element.classList.add('search-match');
 
-    // Animate the active letter
     gsap.to(item.element, {
       scale: 1.15,
       boxShadow: '0 0 40px rgba(206, 17, 38, 0.5)',
       duration: 0.4,
-      ease: 'back.out(1.7)'
+      ease: EASE.snapIn
     });
 
     currentUtterance = new SpeechSynthesisUtterance(text);
@@ -235,14 +262,12 @@ document.addEventListener('DOMContentLoaded', function () {
     currentUtterance.pitch = 1;
     currentUtterance.volume = 1;
 
-    // Try to select a good English voice
     const voices = window.speechSynthesis.getVoices();
     const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
                          voices.find(v => v.lang.startsWith('en'));
     if (englishVoice) currentUtterance.voice = englishVoice;
 
     currentUtterance.onend = () => {
-      // Reset letter
       gsap.to(item.element, {
         scale: 1,
         boxShadow: item.element.classList.contains('B') || item.element.classList.contains('H') ||
@@ -279,7 +304,6 @@ document.addEventListener('DOMContentLoaded', function () {
     currentSpeechIndex = -1;
   }
 
-  // Load voices (some browsers need this event)
   if ('speechSynthesis' in window) {
     window.speechSynthesis.onvoiceschanged = () => {
       window.speechSynthesis.getVoices();
@@ -290,12 +314,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // ENHANCED INTERACTIONS - Ripple, Glow Trail, Stardust
   // ═══════════════════════════════════════════
   letters.forEach(letter => {
-    // Add glow trail element
     const glowTrail = document.createElement('div');
     glowTrail.className = 'glow-trail';
     letter.appendChild(glowTrail);
 
-    // Mouse move glow trail
     letter.addEventListener('mousemove', (e) => {
       const rect = letter.getBoundingClientRect();
       const x = e.clientX - rect.left - 30;
@@ -304,7 +326,6 @@ document.addEventListener('DOMContentLoaded', function () {
       glowTrail.style.top = y + 'px';
     });
 
-    // Click ripple effect
     letter.addEventListener('click', (e) => {
       const rect = letter.getBoundingClientRect();
       const ripple = document.createElement('div');
@@ -323,7 +344,6 @@ document.addEventListener('DOMContentLoaded', function () {
         onComplete: () => ripple.remove()
       });
 
-      // Spawn stardust particles on click
       for (let i = 0; i < 8; i++) {
         const dust = document.createElement('div');
         dust.style.cssText = `
@@ -350,7 +370,6 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
-      // Speak this letter's narrative on click if not already speaking
       if (!isSpeaking && 'speechSynthesis' in window) {
         const idx = Array.from(letters).indexOf(letter);
         if (idx >= 0) {
@@ -369,41 +388,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Character narratives with emotional arcs
   const characterNarratives = {
-    shores: {
-      emotion: 'wonder',
-      theme: 'natural beauty',
-      climax: 'architectural transformation'
-    },
-    heritage: {
-      emotion: 'reverence',
-      theme: 'ancient wisdom',
-      climax: 'generational continuity'
-    },
-    welcome: {
-      emotion: 'warmth',
-      theme: 'human connection',
-      climax: 'universal family'
-    },
-    strength: {
-      emotion: 'determination',
-      theme: 'resilience',
-      climax: 'triumphant growth'
-    },
-    dreams: {
-      emotion: 'aspiration',
-      theme: 'boundless vision',
-      climax: 'stellar achievement'
-    },
-    innovation: {
-      emotion: 'curiosity',
-      theme: 'creative fusion',
-      climax: 'technological poetry'
-    },
-    honor: {
-      emotion: 'dignity',
-      theme: 'moral leadership',
-      climax: 'sovereign grace'
-    }
+    shores: { emotion: 'wonder', theme: 'natural beauty', climax: 'architectural transformation' },
+    heritage: { emotion: 'reverence', theme: 'ancient wisdom', climax: 'generational continuity' },
+    welcome: { emotion: 'warmth', theme: 'human connection', climax: 'universal family' },
+    strength: { emotion: 'determination', theme: 'resilience', climax: 'triumphant growth' },
+    dreams: { emotion: 'aspiration', theme: 'boundless vision', climax: 'stellar achievement' },
+    innovation: { emotion: 'curiosity', theme: 'creative fusion', climax: 'technological poetry' },
+    honor: { emotion: 'dignity', theme: 'moral leadership', climax: 'sovereign grace' }
   };
 
   // Set initial states — letters are ALWAYS fully opaque
@@ -432,7 +423,6 @@ document.addEventListener('DOMContentLoaded', function () {
       stopShowcaseAuto();
       clearTimeout(soloTimer);
     } else {
-      // Resume
       if (isMobile && container.classList.contains('showcase')) {
         startShowcaseAuto();
       } else if (container.classList.contains('solo')) {
@@ -443,7 +433,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
-  // Particle System
+  // ═══════════════════════════════════════════
+  // PARTICLE SYSTEM
+  // ═══════════════════════════════════════════
   class ParticleSystem {
     constructor(container, type = 'default') {
       this.container = container;
@@ -461,14 +453,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
       particle.style.left = `${startX}%`;
       particle.style.top = `${startY}%`;
+      particle.style.opacity = '0';
 
       this.container.appendChild(particle);
 
       const tl = gsap.timeline({
         onComplete: () => {
-          if (particle.parentNode) {
-            particle.parentNode.removeChild(particle);
-          }
+          if (particle.parentNode) particle.parentNode.removeChild(particle);
         }
       });
 
@@ -514,191 +505,134 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Enhanced reveal sequence with emotional arcs
-  function createDramaticReveal(letter, index, isStaggered = true) {
-    const narrative = letter.querySelector('.narrative');
-    const word = letter.querySelector('.word');
-    const particlesContainer = letter.querySelector('.particles-container');
-    const narrativeType = letter.dataset.narrative;
-    const storyArc = characterNarratives[narrativeType];
+  // ═══════════════════════════════════════════
+  // DANCER-FORMATION CHOREOGRAPHY SYSTEM
+  // ═══════════════════════════════════════════
 
-    const tl = gsap.timeline();
-    const baseDelay = isStaggered ? index * TIMING.letterStagger : 0;
+  // Formation-specific dance moves for each layout transition
+  const formationDances = {
+    // plain → final: "Opening Ceremony" — letters bow out then fan into position
+    toFinal: {
+      exit: { scale: 0.85, y: -20, rotation: -8, ease: EASE.snapOut, duration: BEAT.half() },
+      stagger: CHOREO.centerOut,
+      enter: { scale: 1, y: 0, rotation: 0, ease: EASE.elastic, duration: BEAT.interval },
+      flipEase: 'power2.inOut',
+      flipDuration: BEAT.interval * 1.5,
+    },
+    // final → columns: "Domino Drop" — cascade into column positions
+    toColumns: {
+      exit: { scale: 0.9, x: -15, rotationY: 15, ease: EASE.snapOut, duration: BEAT.half() },
+      stagger: CHOREO.cascade,
+      enter: { scale: 1, x: 0, rotationY: 0, ease: EASE.snapIn, duration: BEAT.interval },
+      flipEase: 'power3.inOut',
+      flipDuration: BEAT.interval * 1.5,
+    },
+    // columns → rows: "Wave Sweep" — lateral wave motion
+    toRows: {
+      exit: { scale: 0.9, y: 15, rotationX: -10, ease: EASE.snapOut, duration: BEAT.half() },
+      stagger: CHOREO.reverseCascade,
+      enter: { scale: 1, y: 0, rotationX: 0, ease: EASE.whip, duration: BEAT.interval },
+      flipEase: 'expo.inOut',
+      flipDuration: BEAT.interval * 1.5,
+    },
+    // rows → grid: "Explosion" — burst outward into grid positions
+    toGrid: {
+      exit: { scale: 0.7, rotation: 10, ease: EASE.snapOut, duration: BEAT.half() },
+      stagger: CHOREO.burst,
+      enter: { scale: 1, rotation: 0, ease: EASE.elastic, duration: BEAT.double() },
+      flipEase: 'back.inOut(1.2)',
+      flipDuration: BEAT.double(),
+    },
+  };
 
-    tl.to(letter, {
-      duration: TIMING.dramaDuration,
-      ease: "elastic.out(1, 0.5)",
-      scale: 1.15,
-      rotationY: 10,
-      z: 50,
-      boxShadow: "0 20px 40px rgba(206, 17, 38, 0.3)",
-      className: "+=reveal-active",
-      delay: baseDelay
-    });
-
-    tl.call(() => {
-      const particleType = storyArc.emotion === 'wonder' ? 'gold' :
-                         storyArc.emotion === 'warmth' ? 'silver' : 'default';
-      const particles = new ParticleSystem(particlesContainer, particleType);
-      particles.start();
-    }, null, baseDelay + 0.5);
-
-    tl.to(word, {
-      duration: TIMING.wordReveal,
-      opacity: 1,
-      y: 0,
-      scale: 1.05,
-      ease: "back.out(1.7)",
-      filter: "blur(0px)"
-    }, baseDelay + 0.8);
-
-    tl.to(narrative, {
-      duration: 2,
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      rotationX: 0,
-      ease: "power3.out",
-      filter: "blur(0px)"
-    }, baseDelay + TIMING.narrativeDelay);
-
-    tl.to(letter, {
-      duration: 2,
-      // className: "+=color-shift",
-      ease: "sine.inOut"
-    }, baseDelay + 2);
-
-    tl.to(letter, {
-      duration: 1.5,
-      scale: 1,
-      rotationY: 0,
-      z: 0,
-      ease: "power2.inOut",
-      className: "-=reveal-active -=color-shift"
-    }, baseDelay + 4);
-
-    tl.timeScale(.2);
-
-    return tl;
+  // Pick the right dance based on current → next layout
+  function getDance(fromLayout, toLayout) {
+    if (toLayout === 'final') return formationDances.toFinal;
+    if (toLayout === 'columns') return formationDances.toColumns;
+    if (toLayout === 'rows') return formationDances.toRows;
+    if (toLayout === 'grid') return formationDances.toGrid;
+    return formationDances.toFinal; // default
   }
 
-  // Final dramatic sequence
-  function createFinalRevealSequence() {
-    const finalTl = gsap.timeline();
-
-    letters.forEach((letter, index) => {
-      const revealDelay = index * 0.3;
-
-      finalTl.add(() => {
-        letter.classList.add('final-reveal-active');
-        letter.classList.remove('reveal-active');
-        createDramaticReveal(letter, index, false);
-      }, revealDelay);
+  // Coordinated "breathe" pulse while holding a formation
+  function startFormationBreathing() {
+    return gsap.to(letters, {
+      scale: 1.03,
+      duration: BEAT.double(),
+      ease: EASE.sway,
+      yoyo: true,
+      repeat: -1,
+      stagger: { amount: 0.6, from: 'center' }
     });
-
-    finalTl.to([kingdom, bahrain], {
-      duration: 2.5,
-      opacity: 1,
-      scale: 1.1,
-      y: -10,
-      ease: "elastic.out(1, 0.3)",
-      stagger: 0.5,
-      filter: "drop-shadow(0 0 20px rgba(206, 17, 38, 0.5))"
-    }, 1);
-
-    finalTl.timeScale(.2);
-
-    return finalTl;
   }
 
-  // Enhanced initial entrance
+  // ═══════════════════════════════════════════
+  // INITIAL ENTRANCE — "Curtain Rise"
+  // ═══════════════════════════════════════════
   function createInitialEntrance() {
     const entranceTl = gsap.timeline();
 
-    letters.forEach((letter, index) => {
-      const narrativeType = letter.dataset.narrative;
-      const storyArc = characterNarratives[narrativeType];
+    // All letters start invisible and off-stage
+    gsap.set(letters, { opacity: 0, scale: 0.3, y: 60, rotationX: -45 });
 
-      entranceTl.from(letter, {
-        duration: 1.5,
-        scale: 0.3,
-        opacity: 0,
-        rotationY: -90,
-        z: -200,
-        ease: "back.out(1.4)",
-        delay: index * 0.15,
-        onComplete: () => {
-          if (storyArc.emotion === 'wonder') {
-            gsap.to(letter, { duration: 0.5, filter: "hue-rotate(30deg)", yoyo: true, repeat: 1 });
-          }
-        }
-      }, 0.3);
+    letters.forEach((letter, index) => {
+      const delay = index * BEAT.quarter();
+
+      entranceTl.to(letter, {
+        opacity: 1,
+        scale: 1,
+        y: 0,
+        rotationX: 0,
+        duration: BEAT.interval,
+        ease: EASE.elastic,
+      }, delay);
+
+      // Micro-bounce on landing
+      entranceTl.to(letter, {
+        scale: 1.08,
+        duration: BEAT.quarter(),
+        ease: EASE.snapIn,
+        yoyo: true,
+        repeat: 1,
+      }, delay + BEAT.interval * 0.8);
     });
+
+    // Final synchronized "ready" pulse — all letters together on the beat
+    entranceTl.to(letters, {
+      scale: 1.05,
+      duration: BEAT.quarter(),
+      ease: EASE.punch,
+      yoyo: true,
+      repeat: 1,
+    }, `>+${BEAT.quarter()}`);
 
     return entranceTl;
   }
 
-  // Enhanced word display
-  function showWordsWithNarratives() {
-    const tl = gsap.timeline();
-    words.forEach((word, index) => {
-      const letter = word.parentElement;
-      const narrative = letter.querySelector('.narrative');
-      const narrativeType = letter.dataset.narrative;
-      const storyArc = characterNarratives[narrativeType];
-      const startTime = index * 0.8;
-
-      tl.to(word, {
-        opacity: 1,
-        y: 0,
-        duration: TIMING.wordReveal,
-        ease: storyArc.emotion === 'determination' ? "power4.out" : "power2.out"
-      }, startTime);
-
-      tl.to(narrative, {
-        opacity: 1,
-        y: 0,
-        scale: 1,
-        duration: 1.5,
-        ease: "power3.out"
-      }, startTime + TIMING.narrativeDelay);
-
-      if (storyArc.theme === 'resilience') {
-        tl.to(letter, {
-          boxShadow: "0 10px 30px rgba(206, 17, 38, 0.4)",
-          duration: 0.5,
-          yoyo: true,
-          repeat: 1
-        }, startTime + 1);
-      }
-    });
-    return tl;
-  }
-
-  // Hide narratives
+  // ═══════════════════════════════════════════
+  // HIDE WORDS & NARRATIVES — Fixed opacity!
+  // ═══════════════════════════════════════════
   function hideWordsAndNarratives() {
     return new Promise(resolve => {
       const tl = gsap.timeline();
 
-      narratives.forEach((narrative, index) => {
-        tl.to(narrative, {
-          // opacity: 0,
-          y: 20,
-          scale: 0.9,
-          duration: 0.6,
-          ease: "power2.inOut",
-          delay: index * 0.08
-        }, 0);
-      });
+      tl.to(narratives, {
+        opacity: 0,
+        y: 20,
+        scale: 0.9,
+        duration: BEAT.half(),
+        ease: "power2.inOut",
+        stagger: 0.06
+      }, 0);
 
       tl.to(words, {
-        // opacity: 0,
+        opacity: 0,
         y: 10,
-        duration: 0.6,
+        duration: BEAT.half(),
         ease: "power2.inOut",
-        stagger: 0.05,
+        stagger: 0.04,
         onComplete: resolve
-      }, 0.3);
+      }, 0.1);
     });
   }
 
@@ -712,7 +646,6 @@ document.addEventListener('DOMContentLoaded', function () {
   const showcaseDots = document.getElementById('showcaseDots');
   const swipeHint = document.getElementById('swipeHint');
 
-  // Build dots for showcase navigation
   function buildShowcaseDots() {
     showcaseDots.innerHTML = '';
     letters.forEach((_, i) => {
@@ -740,7 +673,6 @@ document.addEventListener('DOMContentLoaded', function () {
     letters.forEach((letter, i) => {
       if (i === index) {
         letter.classList.add('showcase-active');
-        // Animate in
         gsap.fromTo(letter, {
           opacity: 0,
           scale: 0.85,
@@ -752,10 +684,9 @@ document.addEventListener('DOMContentLoaded', function () {
           x: 0,
           rotationY: 0,
           duration: 0.6,
-          ease: 'back.out(1.2)'
+          ease: EASE.snapIn
         });
 
-        // Animate word in
         const word = letter.querySelector('.word');
         const narrative = letter.querySelector('.narrative');
         if (word) {
@@ -769,18 +700,15 @@ document.addEventListener('DOMContentLoaded', function () {
           });
         }
 
-        // Spawn particles on active card
         const pc = letter.querySelector('.particles-container');
         if (pc) {
           const narrativeType = letter.dataset.narrative;
           const storyArc = characterNarratives[narrativeType];
           const pType = storyArc.emotion === 'wonder' ? 'gold' :
                         storyArc.emotion === 'warmth' ? 'silver' : 'default';
-          const ps = new ParticleSystem(pc, pType);
-          ps.start();
+          new ParticleSystem(pc, pType).start();
         }
       } else {
-        // Animate out previous
         if (letter.classList.contains('showcase-active')) {
           gsap.to(letter, {
             opacity: 0,
@@ -808,7 +736,6 @@ document.addEventListener('DOMContentLoaded', function () {
     showShowcaseCard(prev, -1);
   }
 
-  // Auto-advance showcase cards
   function startShowcaseAuto() {
     clearInterval(showcaseAutoTimer);
     showcaseAutoTimer = setInterval(nextShowcaseCard, 5000);
@@ -840,38 +767,32 @@ document.addEventListener('DOMContentLoaded', function () {
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    // Only count horizontal swipes (not scrolls)
     if (absDx > 40 && absDx > absDy * 1.5 && dt < 500) {
       if (dx < 0) {
         nextShowcaseCard();
       } else {
         prevShowcaseCard();
       }
-      // Hide hint after first swipe
       swipeHint.classList.remove('visible');
     }
 
-    // Restart auto-advance after 8s idle
     setTimeout(startShowcaseAuto, 8000);
   }, { passive: true });
 
   // ═══════════════════════════════════════════
   // ENTER / EXIT MOBILE SHOWCASE MODE
   // ═══════════════════════════════════════════
-
   function enterShowcaseMode() {
     container.classList.remove('final', 'plain', 'columns', 'rows', 'grid', 'solo');
     container.classList.add('showcase');
     showcaseDots.classList.add('visible');
     swipeHint.classList.add('visible');
 
-    // Hide swipe hint after 4 seconds
     setTimeout(() => swipeHint.classList.remove('visible'), 4000);
 
-    // Reset all letters, then show first
     letters.forEach(l => {
       l.classList.remove('showcase-active');
-      gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position' });
+      gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position,rotation,rotationX,rotationY' });
     });
 
     showShowcaseCard(0, 0);
@@ -894,16 +815,17 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ═══════════════════════════════════════════
-  // LAYOUT CYCLING ENGINE
+  // LAYOUT CYCLING ENGINE — Dancer Formations
   // ═══════════════════════════════════════════
   // Order: plain → final → columns → rows → grid → solo (one-by-one) → loop
   const layouts = ['plain', 'final', 'columns', 'rows', 'grid'];
   const ALL_LAYOUT_CLASSES = ['plain', 'final', 'columns', 'rows', 'grid', 'solo', 'showcase'];
-  let currentLayout = 0;       // starts at plain
+  let currentLayout = 0;
   let animationInProgress = false;
   let loopTimeout;
   let soloTimer;
   let soloIndex = 0;
+  let breathingTween = null;
 
   // Helper: ensure letters never go transparent
   function ensureLettersVisible() {
@@ -914,19 +836,44 @@ document.addEventListener('DOMContentLoaded', function () {
     if (animationInProgress || isPaused) return;
     animationInProgress = true;
 
+    // Kill any breathing animation
+    if (breathingTween) {
+      breathingTween.kill();
+      breathingTween = null;
+    }
+
     try {
-      // ── Hide words/narratives/kingdom before FLIP ──
-      gsap.killTweensOf([words, narratives, kingdom, bahrain]);
+      const fromLayout = layouts[currentLayout];
+      const nextIdx = (currentLayout + 1) % layouts.length;
+      const toLayout = layouts[nextIdx];
+      const dance = getDance(fromLayout, toLayout);
 
-      const hideTl = gsap.timeline({ defaults: { duration: 0.4, ease: "power2.in" } });
-      hideTl.to([words, narratives], { opacity: 0, y: 15, scale: 0.92 }, 0);
-      hideTl.to([kingdom, bahrain], { opacity: 0 }, 0);
-      await hideTl;
+      // ── BEAT 1: Exit move — dancers pull back before reforming ──
+      gsap.killTweensOf([words, narratives, kingdom, bahrain, ...letters]);
 
-      // Letters stay fully visible
+      const exitTl = gsap.timeline();
+
+      // Hide words/narratives on the beat
+      exitTl.to([words, narratives], {
+        opacity: 0, y: 15, scale: 0.92,
+        duration: BEAT.half(),
+        ease: "power2.in"
+      }, 0);
+      exitTl.to([kingdom, bahrain], { opacity: 0, duration: BEAT.half() }, 0);
+
+      // Dancers pull back (exit move)
+      exitTl.to(letters, {
+        ...dance.exit,
+        stagger: dance.stagger,
+      }, BEAT.quarter());
+
+      await exitTl;
+
+      // Letters stay fully visible between formations
       ensureLettersVisible();
+      gsap.set(letters, { scale: 1, rotation: 0, rotationX: 0, rotationY: 0, x: 0, y: 0 });
 
-      // ── Capture → switch → FLIP ──
+      // ── BEAT 2: FLIP transition — snap into new formation ──
       const state = Flip.getState(letters, {
         props: "transform,filter,width,height,margin,padding",
         simple: true,
@@ -934,56 +881,83 @@ document.addEventListener('DOMContentLoaded', function () {
       });
 
       container.classList.remove(...ALL_LAYOUT_CLASSES);
-      currentLayout = (currentLayout + 1) % layouts.length;
+      currentLayout = nextIdx;
       container.classList.add(layouts[currentLayout]);
 
       await new Promise(resolve => {
         Flip.from(state, {
-          duration: 1.6,
-          ease: "power3.inOut",
-          stagger: { amount: 0.45, from: "center" },
+          duration: dance.flipDuration,
+          ease: dance.flipEase,
+          stagger: dance.stagger,
           scale: true,
           simple: true,
+          onUpdate: ensureLettersVisible,
           onComplete: resolve
         });
       });
 
-      // Letters stay visible after FLIP
+      // ── BEAT 3: Arrival — dancers land and settle ──
       ensureLettersVisible();
 
-      // ── Reveal content for new layout ──
-      const appearTl = gsap.timeline();
+      const arrivalTl = gsap.timeline();
+
+      // Synchronized landing pulse
+      arrivalTl.fromTo(letters, {
+        scale: 0.92,
+      }, {
+        scale: 1,
+        duration: BEAT.half(),
+        ease: EASE.snapIn,
+        stagger: { amount: 0.3, from: 'center' },
+      }, 0);
+
+      // Micro-bounce on landing
+      arrivalTl.to(letters, {
+        scale: 1.06,
+        duration: BEAT.quarter(),
+        ease: EASE.punch,
+        yoyo: true,
+        repeat: 1,
+        stagger: { amount: 0.2, from: 'center' },
+      }, BEAT.half());
+
+      // ── BEAT 4: Reveal content for new layout ──
       const layout = layouts[currentLayout];
 
       if (layout === 'final') {
         gsap.set([kingdom, bahrain], { display: 'block' });
-        appearTl.to([kingdom, bahrain], {
-          duration: 2.2,
+        arrivalTl.fromTo([kingdom, bahrain], {
+          opacity: 0, scale: 0.8, y: 20
+        }, {
           opacity: 1,
           scale: 1,
           y: 0,
-          ease: "elastic.out(1.1, 0.4)",
-          stagger: 0.35
-        }, 0.6);
+          duration: BEAT.double(),
+          ease: EASE.elastic,
+          stagger: BEAT.half()
+        }, BEAT.half());
       }
 
       if (layout === 'grid') {
-        appearTl.to(words, {
+        arrivalTl.to(words, {
           opacity: 1, y: 0,
-          duration: 1.4,
-          ease: "back.out(1.6)",
-          stagger: 0.08
-        }, 0.6);
+          duration: BEAT.interval,
+          ease: EASE.snapIn,
+          stagger: { each: BEAT.quarter() * 0.5, from: 'random' }
+        }, BEAT.interval);
 
-        appearTl.to(narratives, {
+        arrivalTl.to(narratives, {
           opacity: 1, y: 0, scale: 1,
-          duration: 1.6,
+          duration: BEAT.interval * 1.5,
           ease: "power3.out",
-          stagger: 0.1
-        }, 0.9);
+          stagger: { each: BEAT.quarter() * 0.5, from: 'random' }
+        }, BEAT.interval * 1.5);
       }
 
-      await appearTl;
+      await arrivalTl;
+
+      // Start breathing while holding formation
+      breathingTween = startFormationBreathing();
 
     } catch (err) {
       console.error(err);
@@ -992,32 +966,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // After grid → enter solo mode; otherwise schedule next
       if (layouts[currentLayout] === 'grid') {
-        loopTimeout = setTimeout(enterSoloMode, 8000);
+        loopTimeout = setTimeout(enterSoloMode, TIMING.formationHold);
       } else {
-        const delay = layouts[currentLayout] === 'final' ? 5000 : 3800;
-        loopTimeout = setTimeout(animationLoop, delay);
+        const holdTime = layouts[currentLayout] === 'final'
+          ? TIMING.formationHold * 1.2
+          : TIMING.formationHold;
+        loopTimeout = setTimeout(animationLoop, holdTime);
       }
     }
   }
 
   // ═══════════════════════════════════════════
-  // SOLO ONE-BY-ONE REVEAL
+  // SOLO ONE-BY-ONE REVEAL — "Spotlight Dance"
   // ═══════════════════════════════════════════
   function enterSoloMode() {
     if (isPaused) return;
 
-    // Clean up
-    gsap.killTweensOf([words, narratives, kingdom, bahrain]);
+    if (breathingTween) {
+      breathingTween.kill();
+      breathingTween = null;
+    }
+
+    gsap.killTweensOf([words, narratives, kingdom, bahrain, ...letters]);
     gsap.set([words, narratives], { opacity: 0 });
     gsap.set([kingdom, bahrain], { opacity: 0 });
 
     container.classList.remove(...ALL_LAYOUT_CLASSES);
     container.classList.add('solo');
 
-    // Hide all letters, then reveal one by one
     letters.forEach(l => {
       l.classList.remove('solo-active');
-      gsap.set(l, { opacity: 0, scale: 0.7, x: 0, y: 0 });
+      gsap.set(l, { opacity: 0, scale: 0.5, x: 0, y: 0, rotation: -15 });
     });
 
     soloIndex = 0;
@@ -1027,7 +1006,6 @@ document.addEventListener('DOMContentLoaded', function () {
   function advanceSoloLetter() {
     if (isPaused) return;
 
-    // If we've shown all 7, exit solo → loop back to plain
     if (soloIndex >= letters.length) {
       exitSoloMode();
       return;
@@ -1039,30 +1017,48 @@ document.addEventListener('DOMContentLoaded', function () {
     const narrativeType = letter.dataset.narrative;
     const storyArc = characterNarratives[narrativeType];
 
-    // Hide previous
+    // Hide previous letter with exit dance
     if (soloIndex > 0) {
       const prev = letters[soloIndex - 1];
       const prevWord = prev.querySelector('.word');
       const prevNarr = prev.querySelector('.narrative');
-      gsap.to(prev, { opacity: 0, scale: 0.7, duration: 0.5, ease: "power2.in" });
-      gsap.to(prevWord, { opacity: 0, y: 15, duration: 0.3 });
-      gsap.to(prevNarr, { opacity: 0, y: 15, duration: 0.3 });
+
+      const exitTl = gsap.timeline();
+      exitTl.to(prevWord, { opacity: 0, y: 15, duration: BEAT.quarter() }, 0);
+      exitTl.to(prevNarr, { opacity: 0, y: 15, duration: BEAT.quarter() }, 0);
+      exitTl.to(prev, {
+        opacity: 0, scale: 0.5, rotation: 15,
+        duration: BEAT.half(),
+        ease: EASE.snapOut
+      }, BEAT.quarter() * 0.5);
       prev.classList.remove('solo-active');
     }
 
-    // Show current letter
+    // Spotlight entrance for current letter
     letter.classList.add('solo-active');
     const tl = gsap.timeline();
 
-    // Letter appears: center of viewport
-    tl.to(letter, {
+    // Letter spins in from the other side
+    tl.fromTo(letter, {
+      opacity: 0, scale: 0.5, rotation: -15
+    }, {
       opacity: 1,
       scale: 1,
-      duration: 0.8,
-      ease: "back.out(1.4)"
-    }, 0.3);
+      rotation: 0,
+      duration: BEAT.interval,
+      ease: EASE.elastic
+    }, BEAT.quarter());
 
-    // Particles burst
+    // Landing pulse
+    tl.to(letter, {
+      scale: 1.1,
+      duration: BEAT.quarter(),
+      ease: EASE.punch,
+      yoyo: true,
+      repeat: 1,
+    }, BEAT.interval);
+
+    // Particles burst on beat
     tl.call(() => {
       const pc = letter.querySelector('.particles-container');
       if (pc) {
@@ -1070,52 +1066,70 @@ document.addEventListener('DOMContentLoaded', function () {
                       storyArc.emotion === 'warmth' ? 'silver' : 'default';
         new ParticleSystem(pc, pType).start();
       }
-    }, null, 0.6);
+    }, null, BEAT.interval * 0.8);
 
-    // Word fades in slowly
+    // Word fades in on the next beat
     tl.to(word, {
       opacity: 1,
       y: 0,
-      duration: 1.2,
-      ease: "power2.out"
-    }, 1.0);
+      duration: BEAT.interval,
+      ease: EASE.whip
+    }, BEAT.interval * 1.5);
 
-    // Narrative fades in slowly
+    // Narrative fades in on the beat after
     tl.to(narrative, {
       opacity: 1,
       y: 0,
       scale: 1,
-      duration: 1.4,
+      duration: BEAT.interval * 1.5,
       ease: "power3.out"
-    }, 1.6);
+    }, BEAT.double());
 
     soloIndex++;
-
-    // Wait for the full reveal + reading time, then advance
-    soloTimer = setTimeout(advanceSoloLetter, 6000);
+    soloTimer = setTimeout(advanceSoloLetter, TIMING.soloRevealTime);
   }
 
   function exitSoloMode() {
     clearTimeout(soloTimer);
 
-    // Hide last solo letter
-    letters.forEach(l => {
-      l.classList.remove('solo-active');
+    if (breathingTween) {
+      breathingTween.kill();
+      breathingTween = null;
+    }
+
+    // Graceful exit: fade out the last solo letter
+    const exitTl = gsap.timeline({
+      onComplete: () => {
+        letters.forEach(l => l.classList.remove('solo-active'));
+        container.classList.remove('solo');
+        container.classList.add('plain');
+        currentLayout = 0;
+
+        // Reset everything cleanly
+        gsap.set(letters, { opacity: 1, scale: 1, x: 0, y: 0, rotation: 0, clearProps: 'position,width,height,rotationX,rotationY' });
+        gsap.set(words, { opacity: 0, y: 20 });
+        gsap.set(narratives, { opacity: 0, y: 30, scale: 0.9 });
+        gsap.set([kingdom, bahrain], { opacity: 0 });
+
+        // Show Claude co-sign after first complete cycle
+        loopCount++;
+        if (loopCount === 1) {
+          setTimeout(showClaudeCosign, 500);
+        }
+
+        if (!isPaused) {
+          loopTimeout = setTimeout(animationLoop, BEAT.bars(1));
+        }
+      }
     });
 
-    container.classList.remove('solo');
-    container.classList.add('plain');
-    currentLayout = 0;
-
-    // Reset everything cleanly for the next loop
-    gsap.set(letters, { opacity: 1, scale: 1, x: 0, y: 0, clearProps: 'position,width,height' });
-    gsap.set(words, { opacity: 0, y: 20 });
-    gsap.set(narratives, { opacity: 0, y: 30, scale: 0.9 });
-    gsap.set([kingdom, bahrain], { opacity: 0 });
-
-    if (!isPaused) {
-      loopTimeout = setTimeout(animationLoop, 3000);
-    }
+    letters.forEach((l, i) => {
+      exitTl.to(l, {
+        opacity: 0, scale: 0.3,
+        duration: BEAT.half(),
+        ease: EASE.snapOut
+      }, i * 0.05);
+    });
   }
 
   // ═══════════════════════════════════════════
@@ -1124,7 +1138,6 @@ document.addEventListener('DOMContentLoaded', function () {
   async function animationLoop() {
     if (isPaused) return;
 
-    // If mobile, use showcase mode instead
     if (isMobile) {
       if (!container.classList.contains('showcase')) {
         enterShowcaseMode();
@@ -1132,7 +1145,6 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    // Exit showcase if we were in it
     if (container.classList.contains('showcase')) {
       exitShowcaseMode();
       container.classList.remove(...ALL_LAYOUT_CLASSES);
@@ -1140,7 +1152,6 @@ document.addEventListener('DOMContentLoaded', function () {
       currentLayout = 0;
     }
 
-    // Exit solo if stuck
     if (container.classList.contains('solo')) {
       exitSoloMode();
       return;
@@ -1157,6 +1168,11 @@ document.addEventListener('DOMContentLoaded', function () {
     clearTimeout(soloTimer);
     stopShowcaseAuto();
 
+    if (breathingTween) {
+      breathingTween.kill();
+      breathingTween = null;
+    }
+
     if (isMobile) {
       if (container.classList.contains('solo')) exitSoloMode();
       enterShowcaseMode();
@@ -1170,27 +1186,73 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // ═══════════════════════════════════════════
+  // RESIZE & VISIBILITY HANDLERS (inside closure)
+  // ═══════════════════════════════════════════
+  window.addEventListener('resize', () => {
+    const mobileNow = window.innerWidth <= 768;
+    if (!mobileNow && !animationInProgress) {
+      clearTimeout(loopTimeout);
+      loopTimeout = setTimeout(animationLoop, 2500);
+    }
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      gsap.globalTimeline.pause();
+    } else {
+      gsap.globalTimeline.resume();
+    }
+  });
+
+  // ═══════════════════════════════════════════
+  // CLAUDE CO-SIGN — animated glimpse
+  // ═══════════════════════════════════════════
+  const claudeCosign = document.getElementById('claudeCosign');
+  let cosignShown = false;
+
+  function showClaudeCosign() {
+    if (cosignShown) return;
+    cosignShown = true;
+
+    claudeCosign.classList.add('visible');
+
+    // Sparkle entrance
+    gsap.fromTo(claudeCosign, {
+      scale: 0.5, rotation: -20
+    }, {
+      scale: 1, rotation: 0,
+      duration: BEAT.interval,
+      ease: EASE.elastic
+    });
+
+    // Fade away after a glimpse
+    gsap.to(claudeCosign, {
+      opacity: 0,
+      scale: 0.8,
+      y: 10,
+      duration: BEAT.interval,
+      ease: 'power2.in',
+      delay: 4,
+      onComplete: () => {
+        claudeCosign.classList.remove('visible');
+        cosignShown = false;
+      }
+    });
+  }
+
+  // Show after the first full loop cycle (after grid → solo → back to plain)
+  let loopCount = 0;
+  const originalExitSoloMode = exitSoloMode;
+
+  // ═══════════════════════════════════════════
+  // KICK OFF
+  // ═══════════════════════════════════════════
   createInitialEntrance().then(() => {
     if (isMobile) {
       enterShowcaseMode();
     } else {
-      loopTimeout = setTimeout(animationLoop, 3000);
+      loopTimeout = setTimeout(animationLoop, BEAT.bars(1));
     }
   });
-});
-
-window.addEventListener('resize', () => {
-  const mobileNow = window.innerWidth <= 768;
-  if (!mobileNow && !animationInProgress) {
-    clearTimeout(loopTimeout);
-    loopTimeout = setTimeout(animationLoop, 2500);
-  }
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    gsap.globalTimeline.pause();
-  } else {
-    gsap.globalTimeline.resume();
-  }
 });
