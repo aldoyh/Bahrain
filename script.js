@@ -610,33 +610,6 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // ═══════════════════════════════════════════
-  // HIDE WORDS & NARRATIVES — Fixed opacity!
-  // ═══════════════════════════════════════════
-  function hideWordsAndNarratives() {
-    return new Promise(resolve => {
-      const tl = gsap.timeline();
-
-      tl.to(narratives, {
-        opacity: 0,
-        y: 20,
-        scale: 0.9,
-        duration: BEAT.half(),
-        ease: "power2.inOut",
-        stagger: 0.06
-      }, 0);
-
-      tl.to(words, {
-        opacity: 0,
-        y: 10,
-        duration: BEAT.half(),
-        ease: "power2.inOut",
-        stagger: 0.04,
-        onComplete: resolve
-      }, 0.1);
-    });
-  }
-
-  // ═══════════════════════════════════════════
   // MOBILE DETECTION & SHOWCASE SYSTEM
   // ═══════════════════════════════════════════
   const isMobileQuery = window.matchMedia('(max-width: 768px)');
@@ -849,7 +822,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const dance = getDance(fromLayout, toLayout);
 
       // ── BEAT 1: Exit move — dancers pull back before reforming ──
-      gsap.killTweensOf([words, narratives, kingdom, bahrain, ...letters]);
+      gsap.killTweensOf([...words, ...narratives, kingdom, bahrain, ...letters]);
 
       const exitTl = gsap.timeline();
 
@@ -987,8 +960,9 @@ document.addEventListener('DOMContentLoaded', function () {
       breathingTween = null;
     }
 
-    gsap.killTweensOf([words, narratives, kingdom, bahrain, ...letters]);
-    gsap.set([words, narratives], { opacity: 0 });
+    gsap.killTweensOf([...words, ...narratives, kingdom, bahrain, ...letters]);
+    gsap.set(words, { opacity: 0 });
+    gsap.set(narratives, { opacity: 0 });
     gsap.set([kingdom, bahrain], { opacity: 0 });
 
     container.classList.remove(...ALL_LAYOUT_CLASSES);
@@ -1243,7 +1217,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Show after the first full loop cycle (after grid → solo → back to plain)
   let loopCount = 0;
-  const originalExitSoloMode = exitSoloMode;
 
   // ═══════════════════════════════════════════
   // KICK OFF

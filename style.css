@@ -210,17 +210,33 @@ body::before {
   display: none;
 }
 
+.container.columns {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: center;
+  min-height: 90vh;
+}
+
 .container.columns .letter {
-  margin: 8px;
+  margin: 6px;
+  width: 100px;
+  height: 60px;
+  font-size: 2.5rem;
 }
 
 .container.rows {
   flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
   width: 100%;
+  max-width: 100vw;
 }
 
 .container.rows .letter {
-  margin: 8px;
+  margin: 10px;
+  width: 140px;
+  height: 90px;
+  font-size: 3.5rem;
 }
 
 .container.grid {
@@ -879,12 +895,23 @@ body::before {
   }
 
   .container.final .letter,
-  .container.plain .letter,
-  .container.columns .letter,
-  .container.rows .letter {
+  .container.plain .letter {
     width: 56px;
     height: 56px;
     font-size: 2.2rem;
+  }
+
+  .container.columns .letter {
+    width: 80px;
+    height: 48px;
+    font-size: 2rem;
+  }
+
+  .container.rows .letter {
+    width: 70px;
+    height: 56px;
+    font-size: 2.2rem;
+    margin: 6px;
   }
 
   .container.grid {
