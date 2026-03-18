@@ -17,9 +17,38 @@
     <script src="waveParticles.js"></script>
 </head>
 <body>
+    <!-- Search Bar -->
+    <div class="search-container" id="searchContainer">
+        <div class="search-icon" id="searchToggle">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </div>
+        <input type="text" class="search-input" id="searchInput" placeholder="Search letters, words, stories..." autocomplete="off" />
+        <div class="search-results" id="searchResults"></div>
+    </div>
+
+    <!-- Voice Control -->
+    <div class="voice-container" id="voiceContainer">
+        <button class="voice-btn" id="voiceBtn" title="Read aloud">
+            <svg class="voice-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                <path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path>
+                <path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+            </svg>
+            <svg class="voice-stop-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none">
+                <rect x="6" y="6" width="12" height="12" rx="2"></rect>
+            </svg>
+        </button>
+        <div class="voice-wave" id="voiceWave">
+            <span></span><span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+
     <div class="particles" id="particles"></div>
     <div class="stars" id="stars"></div>
-    <div class="container final">
+    <div class="container plain">
         <div class="letter B" data-narrative="shores">
             B <span class="braille">⠃</span>
             <div class="word">
@@ -109,6 +138,16 @@
     </div>
 
     <div class="overlay"></div>
+
+    <!-- Mobile showcase navigation -->
+    <div class="showcase-dots" id="showcaseDots"></div>
+    <div class="swipe-hint" id="swipeHint">swipe to explore</div>
+
+    <!-- Play / Pause -->
+    <button class="play-pause-btn" id="playPauseBtn" title="Pause animation">
+        <svg class="pp-pause" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></svg>
+        <svg class="pp-play" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="display:none"><polygon points="6,4 20,12 6,20"/></svg>
+    </button>
 
     <div class="flag-credit">Code Vibed by: Hasan AlDoy - Radio Bahrain 2025</div>
 
