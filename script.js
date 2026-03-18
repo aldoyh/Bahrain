@@ -258,14 +258,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     currentUtterance = new SpeechSynthesisUtterance(text);
-    currentUtterance.rate = 0.9;
-    currentUtterance.pitch = 1;
-    currentUtterance.volume = 1;
+    currentUtterance.rate = 1.0;           // Normal speed (was 0.9 — too slow)
+    currentUtterance.pitch = 1.1;          // Slightly higher pitch for clarity
+    currentUtterance.volume = 1;           // Full volume
+    currentUtterance.lang = 'en-US';       // Explicit language
 
+    // Prefer premium voices (Google, Microsoft, etc)
     const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(v => v.lang.startsWith('en') && v.name.includes('Google')) ||
-                         voices.find(v => v.lang.startsWith('en'));
-    if (englishVoice) currentUtterance.voice = englishVoice;
+    const premiumVoice = voices.find(v =>
+      v.lang.startsWith('en') &&
+      (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural'))
+    ) || voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+
+    if (premiumVoice) currentUtterance.voice = premiumVoice;
 
     currentUtterance.onend = () => {
       gsap.to(item.element, {
@@ -281,7 +286,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
       currentSpeechIndex++;
       if (isSpeaking) {
-        setTimeout(speakNext, 400);
+        // Pause between items for breath (500ms instead of 400ms)
+        setTimeout(speakNext, 500);
       }
     };
 
@@ -376,10 +382,16 @@ document.addEventListener('DOMContentLoaded', function () {
           const item = searchData[idx];
           const text = `${item.word}. ${item.title}`;
           const utt = new SpeechSynthesisUtterance(text);
-          utt.rate = 0.95;
+          utt.rate = 1.0;                   // Natural speed
+          utt.pitch = 1.1;                  // Slight pitch boost
+          utt.volume = 1;
+          utt.lang = 'en-US';
           const voices = window.speechSynthesis.getVoices();
-          const voice = voices.find(v => v.lang.startsWith('en'));
-          if (voice) utt.voice = voice;
+          const premiumVoice = voices.find(v =>
+            v.lang.startsWith('en') &&
+            (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Natural'))
+          ) || voices.find(v => v.lang.startsWith('en-US')) || voices.find(v => v.lang.startsWith('en'));
+          if (premiumVoice) utt.voice = premiumVoice;
           window.speechSynthesis.speak(utt);
         }
       }
