@@ -224,8 +224,8 @@ body::before {
   gap: 16px;
   width: 100vw;
   max-width: 100vw;
-  height: 100vh;
-  max-height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   margin: 0;
   padding: 16px;
   position: fixed;
@@ -629,13 +629,19 @@ body::before {
   justify-content: center;
   align-items: center;
   width: 100vw;
-  height: 100vh;
+  /* Use dvh so the showcase fills only the visible viewport,
+     not the area hidden behind the mobile browser chrome */
+  height: 100dvh;
   margin: 0;
   padding: 0;
   position: fixed;
   top: 0;
   left: 0;
   z-index: 2;
+  /* Prevent the pull-to-refresh / bounce from interfering with swipe */
+  overscroll-behavior: none;
+  /* Allow vertical browser scrolling but let JS handle horizontal swipes */
+  touch-action: pan-y;
 }
 
 .container.showcase .letter {
@@ -727,7 +733,8 @@ body::before {
 /* Showcase card indicators (dots) */
 .showcase-dots {
   position: fixed;
-  bottom: 28px;
+  /* Respect iPhone home indicator / notch safe area */
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   display: none;
@@ -759,7 +766,7 @@ body::before {
 /* Showcase swipe hint */
 .swipe-hint {
   position: fixed;
-  bottom: 54px;
+  bottom: calc(54px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   color: rgba(245, 233, 217, 0.35);
@@ -784,6 +791,11 @@ body::before {
    RESPONSIVE DESIGN — TABLETS (max 768px)
    ═══════════════════════════════════════════ */
 @media (max-width: 768px) {
+  body {
+    /* Prevent elastic overscroll from interfering with swipe gestures */
+    overscroll-behavior: none;
+  }
+
   .narrative {
     padding: 15px;
     margin-top: 15px;
@@ -820,8 +832,8 @@ body::before {
     gap: 10px;
     width: 100vw;
     max-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     padding: 10px;
   }
 
@@ -871,6 +883,8 @@ body::before {
   body {
     overflow: hidden;
     height: 100dvh;
+    /* Prevent pull-to-refresh from fighting showcase swipes */
+    overscroll-behavior: none;
   }
 
   .container {
@@ -905,8 +919,8 @@ body::before {
     gap: 8px;
     width: 100vw;
     max-width: 100vw;
-    height: 100vh;
-    max-height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
     padding: 6px;
   }
 
@@ -990,7 +1004,7 @@ body::before {
   justify-content: center;
   align-items: center;
   width: 100vw;
-  height: 100vh;
+  height: 100dvh;
   margin: 0;
   padding: 0;
   position: fixed;
@@ -1082,7 +1096,7 @@ body::before {
    ═══════════════════════════════════════════ */
 .play-pause-btn {
   position: fixed;
-  bottom: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 1002;
@@ -1147,10 +1161,14 @@ body::before {
   }
 }
 
-/* Add these rules */
-
-.container * {
-  will-change: transform, opacity, filter, box-shadow;
+/* Compositing hints — scoped to animated elements only to avoid
+   creating excessive GPU layers on mobile */
+.letter,
+.word,
+.narrative,
+.kingdom,
+.bahrain {
+  will-change: transform, opacity;
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
@@ -1350,8 +1368,8 @@ body::before {
    ═══════════════════════════════════════════ */
 .voice-container {
   position: fixed;
-  bottom: 24px;
-  left: 30px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: calc(30px + env(safe-area-inset-left, 0px));
   z-index: 1000;
   display: flex;
   align-items: center;
@@ -1656,5 +1674,33 @@ body::before {
   .container.solo .story-text {
     font-size: 0.88rem;
     line-height: 1.5;
+  }
+}
+
+/* ═══════════════════════════════════════════
+   ACCESSIBILITY — Reduced Motion
+   Disable non-essential animations for users
+   who prefer reduced motion (common on mobile
+   accessibility settings).
+   ═══════════════════════════════════════════ */
+@media (prefers-reduced-motion: reduce) {
+  /* Stop all looping CSS animations */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /* Keep showcase card transitions readable but instant */
+  .container.showcase .letter {
+    transition: none !important;
+  }
+
+  /* Keep the gradient background static */
+  body {
+    animation: none;
+    background-position: 50% 50%;
   }
 }

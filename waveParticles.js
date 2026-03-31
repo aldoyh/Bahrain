@@ -27,9 +27,11 @@ document.addEventListener('DOMContentLoaded', function() {
   resize();
   window.addEventListener('resize', resize);
 
-  // Particle wave parameters
+  // Reduce particle count on mobile to save GPU/battery
+  const isMobile = window.innerWidth <= 768 ||
+    ('ontouchstart' in window && window.innerWidth <= 1024);
   const WAVE_COUNT = 3;
-  const PARTICLES_PER_WAVE = 60;
+  const PARTICLES_PER_WAVE = isMobile ? 30 : 60;
   const AMPLITUDE = [40, 70, 110];
   const SPEED = [0.18, 0.12, 0.09];
   const COLORS = [
@@ -70,10 +72,21 @@ document.addEventListener('DOMContentLoaded', function() {
     ctx.globalAlpha = 1.0;
   }
 
+  let rafId = null;
+  let paused = false;
+
   function animate() {
-    drawWaves(performance.now() * 0.001);
-    requestAnimationFrame(animate);
+    if (!paused) {
+      drawWaves(performance.now() * 0.001);
+    }
+    rafId = requestAnimationFrame(animate);
   }
+
+  // Pause canvas rendering when the tab is hidden to save battery/CPU
+  document.addEventListener('visibilitychange', () => {
+    paused = document.hidden;
+  });
+
   animate();
 })();
 });

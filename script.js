@@ -824,6 +824,8 @@ document.addEventListener('DOMContentLoaded', function () {
   let touchStartX = 0;
   let touchStartY = 0;
   let touchStartTime = 0;
+  // Guard against overlapping swipe-triggered transitions
+  let isSwipeTransitioning = false;
 
   container.addEventListener('touchstart', (e) => {
     touchStartX = e.touches[0].clientX;
@@ -840,8 +842,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const absDx = Math.abs(dx);
     const absDy = Math.abs(dy);
 
-    // Only count horizontal swipes (not scrolls)
-    if (absDx > 40 && absDx > absDy * 1.5 && dt < 500) {
+    // Only count horizontal swipes (not scrolls) and prevent
+    // a new transition while the previous one is still animating
+    if (!isSwipeTransitioning && absDx > 40 && absDx > absDy * 1.5 && dt < 500) {
+      isSwipeTransitioning = true;
+      // Card enter animation is 0.6s — unlock after it finishes
+      setTimeout(() => { isSwipeTransitioning = false; }, 650);
+
       if (dx < 0) {
         nextShowcaseCard();
       } else {
@@ -1179,14 +1186,10 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 
-window.addEventListener('resize', () => {
-  const mobileNow = window.innerWidth <= 768;
-  if (!mobileNow && !animationInProgress) {
-    clearTimeout(loopTimeout);
-    loopTimeout = setTimeout(animationLoop, 2500);
-  }
-});
-
+// Note: resize / responsive switching is handled inside DOMContentLoaded
+// via the matchMedia 'change' event which has access to all animation state.
+// The visibilitychange handler only needs GSAP — the canvas wave animation
+// manages its own pause state independently in waveParticles.js.
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) {
     gsap.globalTimeline.pause();
