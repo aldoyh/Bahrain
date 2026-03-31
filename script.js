@@ -443,6 +443,210 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // ═══════════════════════════════════════════
+  // MAGIC SPRINKLER — Canvas particle engine
+  // Emits on card entry, ambient drift, and
+  // pointer / touch movement.
+  // ═══════════════════════════════════════════
+  class MagicSprinkler {
+    constructor(letterEl) {
+      this.el = letterEl;
+      this.particles = [];
+      this.ambientTimer = null;
+      this.rafId = null;
+      this.isRunning = false;
+
+      this.canvas = document.createElement('canvas');
+      this.canvas.classList.add('magic-sprinkler');
+      letterEl.appendChild(this.canvas);
+      this.ctx = this.canvas.getContext('2d');
+      this._resize();
+    }
+
+    _resize() {
+      const dpr = window.devicePixelRatio || 1;
+      // offsetWidth/Height gives CSS layout size, unaffected by GSAP transforms
+      this.w = this.el.offsetWidth  || 300;
+      this.h = this.el.offsetHeight || 500;
+      this.canvas.width  = this.w * dpr;
+      this.canvas.height = this.h * dpr;
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    _color() {
+      // Bahrain flag palette: red, cream, gold, white, rose
+      const p = ['#ce1126','#ff4757','#d4af37','#f5e9d9','#ffffff','#ffcc44','#ff8899'];
+      return p[Math.floor(Math.random() * p.length)];
+    }
+
+    _push(x, y, vx, vy) {
+      const shapes = ['star','circle','diamond','sparkle','ring'];
+      this.particles.push({
+        x, y, vx, vy,
+        size:   3 + Math.random() * 8,
+        color:  this._color(),
+        shape:  shapes[Math.floor(Math.random() * shapes.length)],
+        life:   1,
+        decay:  0.014 + Math.random() * 0.022,
+        rot:    Math.random() * Math.PI * 2,
+        rotV:   (Math.random() - 0.5) * 0.2,
+        grav:   0.07 + Math.random() * 0.07,
+        twink:  Math.random() < 0.45
+      });
+    }
+
+    // Directional burst from a point
+    spawnBurst(cx = this.w / 2, cy = this.h * 0.28, count = 30) {
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i / count) + Math.random() * 0.5;
+        const speed = 3 + Math.random() * 6;
+        this._push(cx, cy, Math.cos(angle) * speed, Math.sin(angle) * speed - 2.5);
+      }
+    }
+
+    // Sprinkle from pointer / touch position
+    spawnFromPointer(clientX, clientY, count = 6) {
+      const r = this.el.getBoundingClientRect();
+      const x = clientX - r.left;
+      const y = clientY - r.top;
+      if (x < -10 || x > this.w + 10 || y < -10 || y > this.h + 10) return;
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = 1.5 + Math.random() * 3.5;
+        this._push(x, y, Math.cos(angle) * speed, Math.sin(angle) * speed - 1.5);
+      }
+    }
+
+    _startAmbient() {
+      this.ambientTimer = setInterval(() => {
+        if (!this.isRunning) return;
+        // Drift up from the lower portion of the card
+        const x = Math.random() * this.w;
+        const y = this.h * 0.55 + Math.random() * this.h * 0.45;
+        this._push(x, y,
+          (Math.random() - 0.5) * 1.2,
+          -(0.8 + Math.random() * 1.5)
+        );
+      }, 220);
+    }
+
+    _drawStar(ctx, spikes, outerR, innerR) {
+      let a = -Math.PI / 2;
+      const step = Math.PI / spikes;
+      ctx.beginPath();
+      for (let i = 0; i < spikes; i++) {
+        ctx.lineTo(Math.cos(a) * outerR, Math.sin(a) * outerR); a += step;
+        ctx.lineTo(Math.cos(a) * innerR, Math.sin(a) * innerR); a += step;
+      }
+      ctx.closePath(); ctx.fill();
+    }
+
+    _drawSparkle(ctx, size) {
+      const arms = 4;
+      ctx.beginPath();
+      for (let i = 0; i < arms * 2; i++) {
+        const r = i % 2 === 0 ? size : size * 0.12;
+        const a = (Math.PI * i) / arms;
+        i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+                : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+      }
+      ctx.closePath(); ctx.fill();
+    }
+
+    _drawRing(ctx, size) {
+      ctx.beginPath();
+      ctx.arc(0, 0, size * 0.55, 0, Math.PI * 2);
+      ctx.lineWidth = size * 0.22;
+      ctx.strokeStyle = ctx.fillStyle;
+      ctx.stroke();
+    }
+
+    _tick() {
+      const ctx = this.ctx;
+      const now = Date.now();
+      ctx.clearRect(0, 0, this.w, this.h);
+
+      for (let i = this.particles.length - 1; i >= 0; i--) {
+        const p = this.particles[i];
+        p.x  += p.vx;
+        p.y  += p.vy;
+        p.vy += p.grav;
+        p.vx *= 0.97;
+        // Twinkle: modulate fade rate with a sine wave
+        p.life -= p.twink
+          ? p.decay * (0.6 + 0.8 * Math.abs(Math.sin(now * 0.008 + i)))
+          : p.decay;
+        p.rot += p.rotV;
+
+        if (p.life <= 0) { this.particles.splice(i, 1); continue; }
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, p.life);
+        ctx.fillStyle   = p.color;
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur  = 10;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+
+        switch (p.shape) {
+          case 'star':    this._drawStar(ctx, 5, p.size, p.size * 0.38); break;
+          case 'diamond':
+            ctx.beginPath();
+            ctx.moveTo(0, -p.size); ctx.lineTo(p.size * 0.52, 0);
+            ctx.lineTo(0, p.size);  ctx.lineTo(-p.size * 0.52, 0);
+            ctx.closePath(); ctx.fill(); break;
+          case 'sparkle': this._drawSparkle(ctx, p.size); break;
+          case 'ring':    this._drawRing(ctx, p.size);    break;
+          default:
+            ctx.beginPath(); ctx.arc(0, 0, p.size * 0.48, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+
+    start() {
+      if (this.isRunning) return;
+      this.isRunning = true;
+      // Resize after one frame so layout has settled
+      requestAnimationFrame(() => {
+        this._resize();
+        this.spawnBurst(this.w / 2, this.h * 0.28, 32);
+      });
+      this._startAmbient();
+      const loop = () => {
+        if (!this.isRunning) return;
+        this._tick();
+        this.rafId = requestAnimationFrame(loop);
+      };
+      loop();
+    }
+
+    stop() {
+      this.isRunning = false;
+      clearInterval(this.ambientTimer); this.ambientTimer = null;
+      if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
+      this.particles = [];
+      this.ctx.clearRect(0, 0, this.w, this.h);
+    }
+  }
+
+  // One sprinkler per letter card — created once, started/stopped as cards activate
+  const sprinklers = new WeakMap();
+  letters.forEach(letter => sprinklers.set(letter, new MagicSprinkler(letter)));
+
+  // Track which sprinkler is currently active for pointer routing
+  let activeSprinkler = null;
+
+  // Route pointer and touch movement to the active card's sprinkler
+  container.addEventListener('mousemove', (e) => {
+    if (activeSprinkler) activeSprinkler.spawnFromPointer(e.clientX, e.clientY, 5);
+  });
+  container.addEventListener('touchmove', (e) => {
+    if (activeSprinkler && e.touches.length > 0) {
+      activeSprinkler.spawnFromPointer(e.touches[0].clientX, e.touches[0].clientY, 4);
+    }
+  }, { passive: true });
+
   // Particle System
   class ParticleSystem {
     constructor(container, type = 'default') {
@@ -740,7 +944,8 @@ document.addEventListener('DOMContentLoaded', function () {
     letters.forEach((letter, i) => {
       if (i === index) {
         letter.classList.add('showcase-active');
-        // Animate in
+
+        // Card slides / scales in
         gsap.fromTo(letter, {
           opacity: 0,
           scale: 0.85,
@@ -755,44 +960,73 @@ document.addEventListener('DOMContentLoaded', function () {
           ease: 'back.out(1.2)'
         });
 
-        // Animate word in
-        const word = letter.querySelector('.word');
+        const word      = letter.querySelector('.word');
         const narrative = letter.querySelector('.narrative');
+
+        // ── Word reveal: 2-second dramatic pause after card entry ──
+        // Reset first so we animate from scratch even on revisit
         if (word) {
-          gsap.fromTo(word, { opacity: 0, y: 20 }, {
-            opacity: 1, y: 0, duration: 0.5, delay: 0.2, ease: 'power2.out'
+          gsap.set(word, { opacity: 0, y: 30, scale: 0.88 });
+          gsap.to(word, {
+            opacity: 1, y: 0, scale: 1,
+            duration: 1.0,
+            delay: 2.2,
+            ease: 'back.out(1.6)'
           });
         }
+        // Narrative follows 1s after the word
         if (narrative) {
-          gsap.fromTo(narrative, { opacity: 0, y: 25, scale: 0.95 }, {
-            opacity: 1, y: 0, scale: 1, duration: 0.6, delay: 0.35, ease: 'power2.out'
+          gsap.set(narrative, { opacity: 0, y: 28, scale: 0.93 });
+          gsap.to(narrative, {
+            opacity: 1, y: 0, scale: 1,
+            duration: 0.85,
+            delay: 3.35,
+            ease: 'power3.out'
           });
         }
 
-        // Spawn particles on active card
+        // ── Start the magic sprinkler on this card ──
+        if (activeSprinkler) activeSprinkler.stop();
+        activeSprinkler = sprinklers.get(letter) || null;
+        if (activeSprinkler) activeSprinkler.start();
+
+        // ── Legacy DOM particle burst (keeps original feel) ──
         const pc = letter.querySelector('.particles-container');
         if (pc) {
           const narrativeType = letter.dataset.narrative;
           const storyArc = characterNarratives[narrativeType];
           const pType = storyArc.emotion === 'wonder' ? 'gold' :
                         storyArc.emotion === 'warmth' ? 'silver' : 'default';
-          const ps = new ParticleSystem(pc, pType);
-          ps.start();
+          new ParticleSystem(pc, pType).start();
         }
+
       } else {
-        // Animate out previous
+        // ── Exit animation ──
         if (letter.classList.contains('showcase-active')) {
+          // Kill any in-flight word/narrative tweens so they don't bleed
+          const prevWord = letter.querySelector('.word');
+          const prevNarr = letter.querySelector('.narrative');
+          if (prevWord) gsap.killTweensOf(prevWord);
+          if (prevNarr) gsap.killTweensOf(prevNarr);
+
           gsap.to(letter, {
             opacity: 0,
             scale: 0.85,
             x: direction > 0 ? -60 : direction < 0 ? 60 : 0,
             duration: 0.35,
             ease: 'power2.in',
-            onComplete: () => letter.classList.remove('showcase-active')
+            onComplete: () => {
+              letter.classList.remove('showcase-active');
+              // Stop this card's sprinkler once it's fully off-screen
+              const s = sprinklers.get(letter);
+              if (s) s.stop();
+            }
           });
         } else {
           letter.classList.remove('showcase-active');
           gsap.set(letter, { opacity: 0 });
+          const s = sprinklers.get(letter);
+          if (s && s.isRunning) s.stop();
         }
       }
     });
@@ -809,9 +1043,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Auto-advance showcase cards
+  // 7 000ms gives comfortable viewing after the +2s word reveal delay
   function startShowcaseAuto() {
     clearInterval(showcaseAutoTimer);
-    showcaseAutoTimer = setInterval(nextShowcaseCard, 5000);
+    showcaseAutoTimer = setInterval(nextShowcaseCard, 7000);
   }
 
   function stopShowcaseAuto() {
@@ -891,9 +1126,13 @@ document.addEventListener('DOMContentLoaded', function () {
     showcaseDots.classList.remove('visible');
     swipeHint.classList.remove('visible');
 
+    // Stop all sprinklers
+    if (activeSprinkler) { activeSprinkler.stop(); activeSprinkler = null; }
     letters.forEach(l => {
       l.classList.remove('showcase-active');
       gsap.set(l, { clearProps: 'all' });
+      const s = sprinklers.get(l);
+      if (s && s.isRunning) s.stop();
     });
     gsap.set(letters, { scale: 1, opacity: 1 });
     gsap.set(words, { opacity: 0, y: 20 });
@@ -1079,27 +1318,28 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }, null, 0.6);
 
-    // Word fades in slowly
+    // Word appears with a 2-second dramatic pause (matching showcase behaviour)
     tl.to(word, {
       opacity: 1,
       y: 0,
+      scale: 1,
       duration: 1.2,
-      ease: "power2.out"
-    }, 1.0);
+      ease: "back.out(1.5)"
+    }, 3.0);
 
-    // Narrative fades in slowly
+    // Narrative follows 1s after the word
     tl.to(narrative, {
       opacity: 1,
       y: 0,
       scale: 1,
       duration: 1.4,
       ease: "power3.out"
-    }, 1.6);
+    }, 4.0);
 
     soloIndex++;
 
-    // Wait for the full reveal + reading time, then advance
-    soloTimer = setTimeout(advanceSoloLetter, 6000);
+    // 8s per letter: letter visible (0.8s) + word pause (2s) + reading time
+    soloTimer = setTimeout(advanceSoloLetter, 8000);
   }
 
   function exitSoloMode() {
