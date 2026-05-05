@@ -1113,7 +1113,8 @@ document.addEventListener('DOMContentLoaded', function () {
     // Reset all letters, then show first
     letters.forEach(l => {
       l.classList.remove('showcase-active');
-      gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position' });
+      // clearProps must NOT include 'background' to preserve card colors
+      gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position,transform' });
     });
 
     showShowcaseCard(0, 0);
@@ -1130,6 +1131,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (activeSprinkler) { activeSprinkler.stop(); activeSprinkler = null; }
     letters.forEach(l => {
       l.classList.remove('showcase-active');
+      // clearProps 'all' preserves background naturally (inherits from letter)
       gsap.set(l, { clearProps: 'all' });
       const s = sprinklers.get(l);
       if (s && s.isRunning) s.stop();
