@@ -674,6 +674,8 @@ body::before {
   text-align: center;
   opacity: 0;
   pointer-events: none;
+  /* Preserve the letter's background gradient */
+  background: inherit;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5), 0 0 80px rgba(206, 17, 38, 0.15);
   backdrop-filter: blur(20px);
   border: 1.5px solid rgba(255, 255, 255, 0.15);
