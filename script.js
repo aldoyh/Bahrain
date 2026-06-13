@@ -964,25 +964,24 @@ document.addEventListener('DOMContentLoaded', function () {
         const narrative = letter.querySelector('.narrative');
 
         // ── Word reveal: 2-second dramatic pause after card entry ──
-        // Reset first so we animate from scratch even on revisit
+        // gsap.fromTo is used (not set+to) because fromTo has immediateRender:true,
+        // which explicitly applies the from-state at call time regardless of
+        // computed styles. This avoids the display:none computed-style read issue
+        // that gsap.to with delay can hit on mobile browsers.
         if (word) {
-          gsap.set(word, { opacity: 0, y: 30, scale: 0.88 });
-          gsap.to(word, {
-            opacity: 1, y: 0, scale: 1,
-            duration: 1.0,
-            delay: 2.2,
-            ease: 'back.out(1.6)'
-          });
+          gsap.killTweensOf(word);
+          gsap.fromTo(word,
+            { opacity: 0, y: 30, scale: 0.88 },
+            { opacity: 1, y: 0, scale: 1, duration: 1.0, delay: 2.2, ease: 'back.out(1.6)' }
+          );
         }
-        // Narrative follows 1s after the word
+        // Narrative follows the word
         if (narrative) {
-          gsap.set(narrative, { opacity: 0, y: 28, scale: 0.93 });
-          gsap.to(narrative, {
-            opacity: 1, y: 0, scale: 1,
-            duration: 0.85,
-            delay: 3.35,
-            ease: 'power3.out'
-          });
+          gsap.killTweensOf(narrative);
+          gsap.fromTo(narrative,
+            { opacity: 0, y: 28, scale: 0.93 },
+            { opacity: 1, y: 0, scale: 1, duration: 0.85, delay: 3.35, ease: 'power3.out' }
+          );
         }
 
         // ── Start the magic sprinkler on this card ──
@@ -1003,11 +1002,18 @@ document.addEventListener('DOMContentLoaded', function () {
       } else {
         // ── Exit animation ──
         if (letter.classList.contains('showcase-active')) {
-          // Kill any in-flight word/narrative tweens so they don't bleed
           const prevWord = letter.querySelector('.word');
           const prevNarr = letter.querySelector('.narrative');
-          if (prevWord) gsap.killTweensOf(prevWord);
-          if (prevNarr) gsap.killTweensOf(prevNarr);
+          // Kill pending reveal tweens and snap both back to hidden so the
+          // next fromTo always starts from a clean opacity:0 state.
+          if (prevWord) {
+            gsap.killTweensOf(prevWord);
+            gsap.set(prevWord, { opacity: 0, y: 30, scale: 0.88 });
+          }
+          if (prevNarr) {
+            gsap.killTweensOf(prevNarr);
+            gsap.set(prevNarr, { opacity: 0, y: 28, scale: 0.93 });
+          }
 
           gsap.to(letter, {
             opacity: 0,
@@ -1017,7 +1023,6 @@ document.addEventListener('DOMContentLoaded', function () {
             ease: 'power2.in',
             onComplete: () => {
               letter.classList.remove('showcase-active');
-              // Stop this card's sprinkler once it's fully off-screen
               const s = sprinklers.get(letter);
               if (s) s.stop();
             }
@@ -1110,11 +1115,17 @@ document.addEventListener('DOMContentLoaded', function () {
     // Hide swipe hint after 4 seconds
     setTimeout(() => swipeHint.classList.remove('visible'), 4000);
 
-    // Reset all letters, then show first
+    // Reset all letters + their words/narratives to a known hidden state.
+    // Kill any in-flight tweens first so nothing overrides the reset.
+    gsap.killTweensOf(words);
+    gsap.killTweensOf(narratives);
     letters.forEach(l => {
       l.classList.remove('showcase-active');
-      // clearProps must NOT include 'background' to preserve card colors
       gsap.set(l, { opacity: 0, scale: 0.85, clearProps: 'width,height,position,transform' });
+      const w = l.querySelector('.word');
+      const n = l.querySelector('.narrative');
+      if (w) gsap.set(w, { opacity: 0, y: 30, scale: 0.88 });
+      if (n) gsap.set(n, { opacity: 0, y: 28, scale: 0.93 });
     });
 
     showShowcaseCard(0, 0);
