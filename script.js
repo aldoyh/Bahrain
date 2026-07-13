@@ -864,10 +864,12 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 
   // ── Kick off ──────────────────────────────────────────────
-  createEntrance().then(() => {
+  createEntrance().then(async () => {
     if (isMobile) {
       enterShowcaseMode();
     } else {
+      // Play choreography after entrance so letters pose together before layouts cycle
+      await createChoreography(2.7); // Start 2.7s after page load (when entrance finishes)
       loopTimeout = setTimeout(animationLoop, 3000);
     }
   });
