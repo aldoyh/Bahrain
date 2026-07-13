@@ -645,6 +645,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
       gsap.set(letters, { opacity: 1 }); // re-ensure after FLIP
 
+      // Play choreography (synchronized group dance) after layout morphs
+      await createChoreography(0);
+
       // Reveal content for new layout
       const layout = layouts[currentLayout];
 
@@ -788,6 +791,40 @@ document.addEventListener('DOMContentLoaded', function () {
     if (container.classList.contains('solo')) { exitSoloMode(); return; }
     clearTimeout(loopTimeout);
     await changeLayout();
+  }
+
+  // ── Choreography: Synchronized dance (like synchronized swimming) ────────────
+  // Each letter poses and moves in coordinated sequence with slight stagger
+  function createChoreography(startDelay = 0) {
+    const tl = gsap.timeline();
+    letters.forEach((letter, i) => {
+      const baseDelay = startDelay + i * 0.15; // Stagger each letter by 0.15s
+      // POSE 1: Scale up, rotate, move forward with elasticity
+      tl.to(letter, {
+        duration: 0.4,
+        scale: 1.18,
+        rotationY: 12,
+        rotationX: -5,
+        z: 60,
+        boxShadow: '0 24px 48px rgba(206,17,38,.35)',
+        ease: 'elastic.out(1, 0.6)'
+      }, baseDelay);
+      // HOLD: Letter sits in pose for dramatic effect
+      tl.to(letter, { duration: 1.2 }, baseDelay + 0.4);
+      // RETURN: Back to center with ease
+      tl.to(letter, {
+        duration: 0.8,
+        scale: 1,
+        rotationY: 0,
+        rotationX: 0,
+        z: 0,
+        boxShadow: 'var(--box-shadow, 0 8px 32px rgba(206,17,38,.3), inset 0 1px 0 rgba(255,255,255,.1))',
+        ease: 'power2.inOut'
+      }, baseDelay + 1.6);
+    });
+    // Slow the entire choreography for dramatic effect
+    tl.timeScale(0.5);
+    return tl;
   }
 
   // ── Entrance animation ────────────────────────────────────
